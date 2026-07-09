@@ -71,6 +71,8 @@ parser.add_argument("--tcp_offset", type=float, default=DEFAULT_FRANKA_HAND_TCP_
                     help="Meters from commanded flange/control frame down to fingertip TCP along table Z.")
 parser.add_argument("--min_flange_z", type=float, default=0.03,
                     help="Abort if any commanded TCP/control-frame Z drops below this value.")
+parser.add_argument("--min_grasp_above_table", type=float, default=0.006,
+                    help="Abort if grasp target is closer than this to the local table surface, meters.")
 parser.add_argument("--pause_before_hover_descent", action="store_true", default=True,
                     help="Pause above each target before descending to hover.")
 parser.add_argument("--no_pause_before_hover_descent", action="store_false", dest="pause_before_hover_descent",
@@ -198,7 +200,11 @@ for k, cell_xyz in enumerate(cells):
     hover_flange_z = flange_z_for_tcp_z(hover_tcp_z, args.tcp_offset)
     grasp_flange_z = flange_z_for_tcp_z(grasp_tcp_z, args.tcp_offset)
     assert_safe_flange_z("hover", hover_flange_z, args.min_flange_z)
-    assert_safe_flange_z("grasp", grasp_flange_z, args.min_flange_z)
+    if grasp_tcp_z - table_z < args.min_grasp_above_table:
+        raise SystemExit(
+            f"[SAFETY] Refusing grasp: target is only {grasp_tcp_z - table_z:.4f} m above "
+            f"local table_z={table_z:.4f}; min_grasp_above_table={args.min_grasp_above_table:.4f}."
+        )
 
     print(f"=== cell {k+1}/{len(cells)}: x={cell_xyz[0]:+.3f} y={cell_xyz[1]:+.3f} "
           f"table_z={table_z:+.3f} grasp_tcp_z={grasp_tcp_z:+.3f} "

@@ -21,6 +21,7 @@ import itertools
 import json
 import signal
 import sys
+import time
 from pathlib import Path
 
 import numpy as np
@@ -63,6 +64,12 @@ parser.add_argument("--transport_clearance", type=float, default=0.05,
                     help="Height ABOVE basket_rim to fly over the wall at, meters.")
 parser.add_argument("--release_clearance", type=float, default=0.02,
                     help="Height ABOVE pad_center to descend to before releasing, meters.")
+parser.add_argument("--recycle_from_basket", action="store_true",
+                    help="Start with cube in basket, place it on each cell, retreat home, then pick it back into basket.")
+parser.add_argument("--cell_drop_clearance", type=float, default=0.04,
+                    help="In recycle mode, release cube this far above the cell grasp height instead of setting it down.")
+parser.add_argument("--post_cell_pause", type=float, default=0.0,
+                    help="Seconds to pause after each completed/skipped/failed cell before continuing.")
 parser.add_argument("--max_step", type=float, default=0.03,
                     help="Maximum Cartesian segment length, meters. Use 0 for one smooth move per leg.")
 parser.add_argument("--travel_extra_clearance", type=float, default=0.08,
@@ -73,6 +80,8 @@ parser.add_argument("--tcp_offset", type=float, default=DEFAULT_FRANKA_HAND_TCP_
                     help="Meters from commanded flange/control frame down to fingertip TCP along table Z.")
 parser.add_argument("--min_flange_z", type=float, default=0.03,
                     help="Abort if any commanded TCP/control-frame Z drops below this value.")
+parser.add_argument("--min_grasp_above_table", type=float, default=0.006,
+                    help="Abort if grasp target is closer than this to the local table surface, meters.")
 parser.add_argument("--pause_before_hover_descent", action="store_true", default=True,
                     help="Pause above each pick target before descending to hover.")
 parser.add_argument("--no_pause_before_hover_descent", action="store_false", dest="pause_before_hover_descent",
@@ -83,6 +92,8 @@ parser.add_argument("--max_cells", type=int, default=None,
                     help="Keep at most this many cells, sampled evenly across the generated grid.")
 parser.add_argument("--skip_selected_cell", type=int, action="append", default=[],
                     help="Zero-based cell index to skip after --max_cells selection.")
+parser.add_argument("--printed_cell", type=int, action="append", default=[],
+                    help="Run only matching tracker printed_cell values from --cells_json. Can be repeated.")
 parser.add_argument("--start_cell", type=int, default=0,
                     help="Zero-based cell index to start from after filtering.")
 parser.add_argument("--end_cell", type=int, default=None,
@@ -116,6 +127,7 @@ if args.cells_json:
     cells = [np.array([cell["x"], cell["y"], cell["table_z"]], dtype=float) for cell in cell_records]
     print(f"[grid] loaded {len(cells)} cells from {args.cells_json}")
 else:
+    cell_records = None
     cells = []
     for i, j in itertools.product(range(args.nx), range(args.ny)):
         u = (i + 0.5) / args.nx
@@ -129,23 +141,44 @@ if args.skip_cell:
     skip = set(args.skip_cell)
     before_skip = len(cells)
     cells = [c for k, c in enumerate(cells) if k not in skip]
+    if cell_records is not None:
+        cell_records = [c for k, c in enumerate(cell_records) if k not in skip]
     print(f"[grid] skipped cells by request: {sorted(skip)} ({before_skip - len(cells)} matched)")
 
 if args.max_cells is not None and len(cells) > args.max_cells:
     keep = np.linspace(0, len(cells) - 1, args.max_cells, dtype=int)
     cells = [cells[k] for k in keep]
+    if cell_records is not None:
+        cell_records = [cell_records[k] for k in keep]
     print(f"[grid] limited to {args.max_cells} evenly sampled cells")
 
 if args.skip_selected_cell:
     skip = set(args.skip_selected_cell)
     before_skip = len(cells)
     cells = [c for k, c in enumerate(cells) if k not in skip]
+    if cell_records is not None:
+        cell_records = [c for k, c in enumerate(cell_records) if k not in skip]
     print(f"[grid] skipped selected cells by request: {sorted(skip)} ({before_skip - len(cells)} matched)")
+
+if args.printed_cell:
+    if cell_records is None:
+        raise SystemExit("--printed_cell requires --cells_json.")
+    wanted = set(args.printed_cell)
+    matched = [(cell, record) for cell, record in zip(cells, cell_records) if int(record["printed_cell"]) in wanted]
+    cells = [cell for cell, _ in matched]
+    cell_records = [record for _, record in matched]
+    print(f"[grid] selected tracker printed_cell values: {sorted(wanted)} ({len(cells)} matched)")
 
 if args.start_cell or args.end_cell is not None:
     end = len(cells) - 1 if args.end_cell is None else args.end_cell
     cells = cells[args.start_cell:end + 1]
+    if cell_records is not None:
+        cell_records = cell_records[args.start_cell:end + 1]
     print(f"[grid] running cell range {args.start_cell}..{end}")
+
+if not cells:
+    print("[grid] no cells selected; exiting before robot connection.")
+    raise SystemExit(0)
 
 transport_tcp_z = float(RIM[2] + args.transport_clearance)
 release_tcp_z = float(PAD[2] + args.release_clearance)
@@ -160,6 +193,9 @@ print(f"[basket] transport_tcp_z={transport_tcp_z:+.3f} flange_z={transport_flan
       f"release_tcp_z={release_tcp_z:+.3f} flange_z={release_flange_z:+.3f}")
 print(f"[grasp] target_width={args.grasp_width} speed={args.grasp_speed} force={args.grasp_force} "
       f"epsilon=+/-{args.grasp_epsilon} lowering={args.grasp_lowering}")
+print(f"[mode] {'basket recycle' if args.recycle_from_basket else 'manual cell placement'}")
+if args.recycle_from_basket:
+    print(f"[recycle] cell_drop_clearance={args.cell_drop_clearance:.3f}")
 print("[reminder] orient the cube so its SHORT (4x4cm) face is between the gripper fingers.\n")
 
 input("[SAFETY] Confirm workspace AND path over the basket are clear. Press Enter to connect...")
@@ -208,21 +244,123 @@ print(f"[robot] travel_z_floor={travel_z_floor:+.4f} "
 motion = MotionPlanner(robot, args.dynamics_factor, args.max_step, travel_z_floor)
 
 
+def open_and_stop_after_motion_failure(context: str, exc: Exception) -> None:
+    print(f"  [fail] {context} failed: {exc}")
+    print("  [fail] opening gripper. Mark this tracker cell as FAIL/SKIP and hand-guide back to home if needed.")
+    try:
+        gripper.open(args.open_speed)
+    finally:
+        raise SystemExit("[robot] stopped after motion failure to avoid commanding more motion from a bad pose.")
+
+
+def pick_from_pose(xyz: np.ndarray, hover_z: float, grasp_z: float, label: str) -> bool:
+    motion.travel_to(xyz, hover_z, f"{label}: to hover")
+    motion.move_in_steps(np.array([xyz[0], xyz[1], grasp_z]), f"{label}: descend to grasp")
+    grasped = gripper.grasp(
+        args.grasp_width,
+        args.grasp_speed,
+        args.grasp_force,
+        epsilon_inner=args.grasp_epsilon,
+        epsilon_outer=args.grasp_epsilon,
+    )
+    print(f"  [grasp] {label}: grasp() returned: {grasped}  (width now: {gripper.width:.4f})")
+    try:
+        motion.move_in_steps(np.array([xyz[0], xyz[1], grasp_z + args.lift_check_height]), f"{label}: lift & verify")
+    except Exception as e:
+        open_and_stop_after_motion_failure(f"{label}: lift from grasp pose", e)
+    holding = gripper.is_grasped
+    print(f"  [verify] {label}: is_grasped={holding}")
+    return bool(grasped and holding)
+
+
+def place_at_pose(xyz: np.ndarray, hover_z: float, place_z: float, label: str) -> None:
+    motion.travel_to(xyz, hover_z, f"{label}: to hover")
+    motion.move_in_steps(np.array([xyz[0], xyz[1], place_z]), f"{label}: descend to place")
+    gripper.open(args.open_speed)
+    print(f"  [release] {label}: cube released.")
+    motion.move_in_steps(np.array([xyz[0], xyz[1], hover_z]), f"{label}: retreat to hover")
+
+
+if args.recycle_from_basket:
+    input("[SETUP] Put the cube in the basket at pad_center, with the same orientation as normal grasping. Press Enter...")
+
+
+def post_cell_pause() -> None:
+    if args.post_cell_pause > 0:
+        print(f"  [pause] waiting {args.post_cell_pause:.1f}s before next cell...")
+        time.sleep(args.post_cell_pause)
+
+
 results = []
 for k, cell_xyz in enumerate(cells):
+    source = cell_records[k] if cell_records is not None else None
     table_z = float(cell_xyz[2])
     hover_tcp_z = table_z + args.hover_clearance
     grasp_tcp_z = table_z + args.cube_height / 2 - args.grasp_lowering
+    basket_grasp_tcp_z = float(PAD[2] + args.cube_height / 2 - args.grasp_lowering)
+    basket_grasp_flange_z = flange_z_for_tcp_z(basket_grasp_tcp_z, args.tcp_offset)
     hover_flange_z = flange_z_for_tcp_z(hover_tcp_z, args.tcp_offset)
     grasp_flange_z = flange_z_for_tcp_z(grasp_tcp_z, args.tcp_offset)
+    cell_drop_flange_z = min(hover_flange_z, grasp_flange_z + args.cell_drop_clearance)
     assert_safe_flange_z("hover", hover_flange_z, args.min_flange_z)
-    assert_safe_flange_z("grasp", grasp_flange_z, args.min_flange_z)
+    if grasp_tcp_z - table_z < args.min_grasp_above_table:
+        raise SystemExit(
+            f"[SAFETY] Refusing grasp: target is only {grasp_tcp_z - table_z:.4f} m above "
+            f"local table_z={table_z:.4f}; min_grasp_above_table={args.min_grasp_above_table:.4f}."
+        )
+    if args.recycle_from_basket and basket_grasp_tcp_z - PAD[2] < args.min_grasp_above_table:
+        raise SystemExit(
+            f"[SAFETY] Refusing basket grasp: target is only {basket_grasp_tcp_z - PAD[2]:.4f} m above "
+            f"pad_center_z={PAD[2]:.4f}; min_grasp_above_table={args.min_grasp_above_table:.4f}."
+        )
 
     print(f"=== cell {k+1}/{len(cells)}: x={cell_xyz[0]:+.3f} y={cell_xyz[1]:+.3f} "
           f"table_z={table_z:+.3f} grasp_tcp_z={grasp_tcp_z:+.3f} "
           f"grasp_flange_z={grasp_flange_z:+.3f} ===")
+    if source is not None:
+        print(f"  [source] tracker printed_cell={source['printed_cell']} "
+              f"selected_index={source['selected_index']} generated_index={source['generated_index']}")
     print(f"  [safety] current_flange_z={motion.current_xyz()[2]:+.4f} "
           f"hover_flange_z={hover_flange_z:+.4f} grasp_flange_z={grasp_flange_z:+.4f}")
+
+    if args.recycle_from_basket:
+        print("  [auto] recycling cube: basket -> cell -> home -> cell -> basket.")
+        reset_dynamics(robot, args.dynamics_factor)
+        gripper.open(args.open_speed)
+        basket_picked = pick_from_pose(PAD, transport_flange_z, basket_grasp_flange_z, "basket pickup")
+        if not basket_picked:
+            print("  [fail] could not pick cube from basket; stopping before moving to cell.")
+            gripper.open(args.open_speed)
+            motion.travel_to(home_xyz, home_xyz[2], "retreat home")
+            results.append(False)
+            post_cell_pause()
+            continue
+
+        print(f"  [auto] dropping cube on cell from z={cell_drop_flange_z:+.4f} "
+              f"(grasp_z={grasp_flange_z:+.4f}, clearance={args.cell_drop_clearance:.3f}).")
+        place_at_pose(cell_xyz, hover_flange_z, cell_drop_flange_z, "drop on cell")
+        motion.travel_to(home_xyz, home_xyz[2], "retreat home after cell placement")
+        print("  [auto] cube placed on cell; returning from home to pick it into basket.")
+
+        gripper.open(args.open_speed)
+        cell_picked = pick_from_pose(cell_xyz, hover_flange_z, grasp_flange_z, "cell pickup")
+        if not cell_picked:
+            print("  [fail] grasp did not hold from cell — releasing and retreating without transport.")
+            gripper.open(args.open_speed)
+            motion.travel_to(home_xyz, home_xyz[2], "retreat home")
+            results.append(False)
+            post_cell_pause()
+            continue
+
+        print("  [auto] cell grasp confirmed; transporting over basket rim.")
+        motion.move_in_steps(np.array([cell_xyz[0], cell_xyz[1], transport_flange_z]), "rise to transport height")
+        place_at_pose(PAD, transport_flange_z, release_flange_z, "place in basket")
+        motion.travel_to(home_xyz, home_xyz[2], "retreat home")
+        results.append(True)
+        print("  [done] SUCCESS.\n")
+        post_cell_pause()
+        continue
+
     input("  press Enter to hover above this cell...")
     reset_dynamics(robot, args.dynamics_factor)
     if args.pause_before_hover_descent:
@@ -240,6 +378,7 @@ for k, cell_xyz in enumerate(cells):
     if ans.strip().lower() == "s":
         motion.travel_to(home_xyz, home_xyz[2], "retreat home")
         print("  [skip]\n")
+        post_cell_pause()
         continue
 
     motion.travel_to(home_xyz, home_xyz[2], "retreat home before auto pick")
@@ -253,8 +392,16 @@ for k, cell_xyz in enumerate(cells):
                                epsilon_inner=args.grasp_epsilon, epsilon_outer=args.grasp_epsilon)
     print(f"  [grasp] grasp() returned: {grasped_ok}  (width now: {gripper.width:.4f})")
 
-    motion.move_in_steps(np.array([cell_xyz[0], cell_xyz[1], grasp_flange_z + args.lift_check_height]), "lift & verify")
-    still_holding = gripper.is_grasped
+    try:
+        motion.move_in_steps(np.array([cell_xyz[0], cell_xyz[1], grasp_flange_z + args.lift_check_height]), "lift & verify")
+        still_holding = gripper.is_grasped
+    except Exception as e:
+        print(f"  [fail] lift from grasp pose failed: {e}")
+        print("  [fail] opening gripper. Mark this tracker cell as FAIL/SKIP and hand-guide back to home.")
+        try:
+            gripper.open(args.open_speed)
+        finally:
+            raise SystemExit("[robot] stopped after lift failure to avoid commanding more motion from a singular pose.")
     print(f"  [verify] is_grasped={still_holding}")
 
     if not (grasped_ok and still_holding):
@@ -263,6 +410,7 @@ for k, cell_xyz in enumerate(cells):
         motion.travel_to(home_xyz, home_xyz[2], "retreat home")
         results.append(False)
         print("  [done] FAIL.\n")
+        post_cell_pause()
         continue
 
     print("  [auto] grasp confirmed; transporting over basket rim.")
@@ -277,6 +425,7 @@ for k, cell_xyz in enumerate(cells):
     motion.travel_to(home_xyz, home_xyz[2], "retreat home")
     results.append(True)
     print("  [done] SUCCESS.\n")
+    post_cell_pause()
 
 n = len(results)
 s = sum(results)
