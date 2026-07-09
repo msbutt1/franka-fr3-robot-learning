@@ -50,6 +50,8 @@ parser.add_argument("--robot_ip", type=str, required=True)
 parser.add_argument("--points", type=str, default="probed_points.json",
                     help="Output of probe_points.py — needs bottom_left/bottom_right/"
                          "top_left/top_right/pad_center at minimum.")
+parser.add_argument("--cells_json", type=str, default=None,
+                    help="Optional JSON exported by filter_grid_tracker.py. If set, use those cells instead of generating a grid.")
 parser.add_argument("--nx", type=int, default=3, help="Grid cells along near/far axis.")
 parser.add_argument("--ny", type=int, default=3, help="Grid cells along left/right axis.")
 parser.add_argument("--basket_w", type=float, default=0.154, help="Basket footprint, meters (long side).")
@@ -116,14 +118,19 @@ def bilinear(u: float, v: float) -> np.ndarray:
 # Build the grid, excluding cells inside the basket footprint (+margin).
 print("[grid] basket exclusion: "
       + ("probed corner polygon" if basket_polygon_xy is not None else "pad_center rectangle"))
-cells = []
-for i, j in itertools.product(range(args.nx), range(args.ny)):
-    u = (i + 0.5) / args.nx
-    v = (j + 0.5) / args.ny
-    xyz = bilinear(u, v)
-    if inside_basket_exclusion(xyz, PAD, args.basket_margin, args.basket_w, args.basket_h, basket_polygon_xy):
-        continue  # inside the basket footprint — skip
-    cells.append(xyz)
+if args.cells_json:
+    cell_records = json.loads(Path(args.cells_json).read_text())["cells"]
+    cells = [np.array([cell["x"], cell["y"], cell["table_z"]], dtype=float) for cell in cell_records]
+    print(f"[grid] loaded {len(cells)} cells from {args.cells_json}")
+else:
+    cells = []
+    for i, j in itertools.product(range(args.nx), range(args.ny)):
+        u = (i + 0.5) / args.nx
+        v = (j + 0.5) / args.ny
+        xyz = bilinear(u, v)
+        if inside_basket_exclusion(xyz, PAD, args.basket_margin, args.basket_w, args.basket_h, basket_polygon_xy):
+            continue  # inside the basket footprint — skip
+        cells.append(xyz)
 
 if args.skip_cell:
     skip = set(args.skip_cell)

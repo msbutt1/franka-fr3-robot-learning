@@ -2,10 +2,10 @@
 """STAGE B: full pick-and-place-into-basket cycle for the real FR3.
 
 Per cell: hover -> place cube (short 4x4cm face between the fingers) -> confirm ->
-descend -> grasp() -> verify by lifting -> [only if grasped] transport over the
-basket rim -> descend into the basket -> release -> retreat home. If the grasp
-fails, the cube is never carried toward the basket -- the arm just retreats home
-and the cell is marked FAIL.
+retreat home -> automatically return, descend, grasp(), verify by lifting ->
+[only if grasped] transport over the basket rim -> descend into the basket ->
+release -> retreat home. If the grasp fails, the cube is never carried toward
+the basket -- the arm just retreats home and the cell is marked FAIL.
 
 Every move is computed from a FRESH read of the robot's current pose (not a
 running tally), so small execution drift never compounds across the sequence.
@@ -39,6 +39,8 @@ from grid_utils import basket_polygon_from_points, inside_basket_exclusion
 parser = argparse.ArgumentParser()
 parser.add_argument("--robot_ip", type=str, required=True)
 parser.add_argument("--points", type=str, default="probed_points.json")
+parser.add_argument("--cells_json", type=str, default=None,
+                    help="Optional JSON exported by filter_grid_tracker.py. If set, use those cells instead of generating a grid.")
 parser.add_argument("--nx", type=int, default=3)
 parser.add_argument("--ny", type=int, default=3)
 parser.add_argument("--basket_w", type=float, default=0.154)
@@ -109,14 +111,19 @@ def bilinear(u: float, v: float) -> np.ndarray:
 
 print("[grid] basket exclusion: "
       + ("probed corner polygon" if basket_polygon_xy is not None else "pad_center rectangle"))
-cells = []
-for i, j in itertools.product(range(args.nx), range(args.ny)):
-    u = (i + 0.5) / args.nx
-    v = (j + 0.5) / args.ny
-    xyz = bilinear(u, v)
-    if inside_basket_exclusion(xyz, PAD, args.basket_margin, args.basket_w, args.basket_h, basket_polygon_xy):
-        continue
-    cells.append(xyz)
+if args.cells_json:
+    cell_records = json.loads(Path(args.cells_json).read_text())["cells"]
+    cells = [np.array([cell["x"], cell["y"], cell["table_z"]], dtype=float) for cell in cell_records]
+    print(f"[grid] loaded {len(cells)} cells from {args.cells_json}")
+else:
+    cells = []
+    for i, j in itertools.product(range(args.nx), range(args.ny)):
+        u = (i + 0.5) / args.nx
+        v = (j + 0.5) / args.ny
+        xyz = bilinear(u, v)
+        if inside_basket_exclusion(xyz, PAD, args.basket_margin, args.basket_w, args.basket_h, basket_polygon_xy):
+            continue
+        cells.append(xyz)
 
 if args.skip_cell:
     skip = set(args.skip_cell)
@@ -229,13 +236,17 @@ for k, cell_xyz in enumerate(cells):
         motion.travel_to(cell_xyz, hover_flange_z, "to hover")
 
     print("  [check] look at the gripper fingers now — note their orientation.")
-    ans = input("  place the cube (short face between fingers), then Enter to grasp ('s'=skip cell): ")
+    ans = input("  place the cube, then Enter to retreat home and start automatic pick-place ('s'=skip cell): ")
     if ans.strip().lower() == "s":
         motion.travel_to(home_xyz, home_xyz[2], "retreat home")
         print("  [skip]\n")
         continue
 
+    motion.travel_to(home_xyz, home_xyz[2], "retreat home before auto pick")
+    print("  [auto] starting pick-place sequence; no more prompts for this cell.")
+    reset_dynamics(robot, args.dynamics_factor)
     gripper.open(args.open_speed)
+    motion.travel_to(cell_xyz, hover_flange_z, "auto return to hover")
     motion.move_in_steps(np.array([cell_xyz[0], cell_xyz[1], grasp_flange_z]), "descend to grasp")
 
     grasped_ok = gripper.grasp(args.grasp_width, args.grasp_speed, args.grasp_force,
@@ -254,7 +265,7 @@ for k, cell_xyz in enumerate(cells):
         print("  [done] FAIL.\n")
         continue
 
-    input("  grasp confirmed. press Enter to transport OVER THE BASKET RIM (watch closely)...")
+    print("  [auto] grasp confirmed; transporting over basket rim.")
     motion.move_in_steps(np.array([cell_xyz[0], cell_xyz[1], transport_flange_z]), "rise to transport height")
     motion.travel_to(PAD, transport_flange_z, "fly to above basket")
     motion.move_in_steps(np.array([PAD[0], PAD[1], release_flange_z]), "descend into basket")
