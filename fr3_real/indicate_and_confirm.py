@@ -43,6 +43,7 @@ from franka_motion import (
     flange_z_for_tcp_z,
     reset_dynamics,
 )
+from grid_utils import basket_polygon_from_points, inside_basket_exclusion
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--robot_ip", type=str, required=True)
@@ -79,7 +80,17 @@ parser.add_argument("--auto_retreat_after_hover_descent", action="store_true",
                     help="After an allowed hover descent, try to return home automatically.")
 parser.add_argument("--skip_cell", type=int, action="append", default=[],
                     help="Zero-based generated cell index to skip. Can be passed multiple times.")
+parser.add_argument("--max_cells", type=int, default=None,
+                    help="Keep at most this many cells, sampled evenly across the generated grid.")
+parser.add_argument("--skip_selected_cell", type=int, action="append", default=[],
+                    help="Zero-based cell index to skip after --max_cells selection.")
+parser.add_argument("--start_cell", type=int, default=0,
+                    help="Zero-based cell index to start from after filtering.")
+parser.add_argument("--end_cell", type=int, default=None,
+                    help="Zero-based cell index to stop at after filtering, inclusive.")
 args = parser.parse_args()
+if args.max_cells is not None and args.max_cells <= 0:
+    raise SystemExit("--max_cells must be positive.")
 
 pts = json.loads(Path(args.points).read_text())
 required = ["bottom_left", "bottom_right", "top_left", "top_right", "pad_center"]
@@ -92,6 +103,7 @@ BR = np.array(pts["bottom_right"])  # near, right
 TL = np.array(pts["top_left"])      # far, left
 TR = np.array(pts["top_right"])     # far, right
 PAD = np.array(pts["pad_center"])
+basket_polygon_xy = basket_polygon_from_points(pts)
 
 
 def bilinear(u: float, v: float) -> np.ndarray:
@@ -102,14 +114,14 @@ def bilinear(u: float, v: float) -> np.ndarray:
 
 
 # Build the grid, excluding cells inside the basket footprint (+margin).
-half_w = args.basket_w / 2 + args.basket_margin
-half_h = args.basket_h / 2 + args.basket_margin
+print("[grid] basket exclusion: "
+      + ("probed corner polygon" if basket_polygon_xy is not None else "pad_center rectangle"))
 cells = []
 for i, j in itertools.product(range(args.nx), range(args.ny)):
     u = (i + 0.5) / args.nx
     v = (j + 0.5) / args.ny
     xyz = bilinear(u, v)
-    if abs(xyz[0] - PAD[0]) < half_w and abs(xyz[1] - PAD[1]) < half_h:
+    if inside_basket_exclusion(xyz, PAD, args.basket_margin, args.basket_w, args.basket_h, basket_polygon_xy):
         continue  # inside the basket footprint — skip
     cells.append(xyz)
 
@@ -118,6 +130,22 @@ if args.skip_cell:
     before_skip = len(cells)
     cells = [c for k, c in enumerate(cells) if k not in skip]
     print(f"[grid] skipped cells by request: {sorted(skip)} ({before_skip - len(cells)} matched)")
+
+if args.max_cells is not None and len(cells) > args.max_cells:
+    keep = np.linspace(0, len(cells) - 1, args.max_cells, dtype=int)
+    cells = [cells[k] for k in keep]
+    print(f"[grid] limited to {args.max_cells} evenly sampled cells")
+
+if args.skip_selected_cell:
+    skip = set(args.skip_selected_cell)
+    before_skip = len(cells)
+    cells = [c for k, c in enumerate(cells) if k not in skip]
+    print(f"[grid] skipped selected cells by request: {sorted(skip)} ({before_skip - len(cells)} matched)")
+
+if args.start_cell or args.end_cell is not None:
+    end = len(cells) - 1 if args.end_cell is None else args.end_cell
+    cells = cells[args.start_cell:end + 1]
+    print(f"[grid] running cell range {args.start_cell}..{end}")
 
 print(f"[grid] {len(cells)} placement cells (of {args.nx * args.ny}; "
       f"{args.nx * args.ny - len(cells)} excluded/skipped)")

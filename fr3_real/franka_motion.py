@@ -88,7 +88,17 @@ class MotionPlanner:
         if max_step is None:
             max_step = self.max_step
         if max_step <= 0:
-            self.safe_move_to(target_xyz, label)
+            try:
+                self.safe_move_to(target_xyz, label)
+                return
+            except Exception as e:
+                message = str(e).lower()
+                if "reflex" not in message and "violation" not in message:
+                    raise
+                print(f"    [fallback] {label or 'move'} failed as one smooth segment; retrying with 3 cm segments.")
+                self.robot.recover_from_errors()
+                self.robot.relative_dynamics_factor = self.dynamics_factor / 2
+                self.move_in_steps(target_xyz, label, max_step=0.03)
             return
         current = self.current_xyz()
         dist = float(np.linalg.norm(target_xyz - current))
