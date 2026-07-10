@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+
 import numpy as np
 from franky import Affine, CartesianMotion, ReferenceType, RobotPose
 
@@ -50,11 +52,19 @@ class MotionPlanner:
         dynamics_factor: float,
         max_step: float,
         travel_z_floor: float,
+        settle_time: float = 0.10,
+        action_callback=None,
+        retry_policy: str = "retry_slower",
+        allow_segment_fallback: bool = True,
     ) -> None:
         self.robot = robot
         self.dynamics_factor = dynamics_factor
         self.max_step = max_step
         self.travel_z_floor = travel_z_floor
+        self.settle_time = settle_time
+        self.action_callback = action_callback
+        self.retry_policy = retry_policy
+        self.allow_segment_fallback = allow_segment_fallback
 
     def current_xyz(self) -> np.ndarray:
         return np.array(self.robot.current_pose.end_effector_pose.translation, dtype=float)
@@ -67,21 +77,49 @@ class MotionPlanner:
 
     def safe_move_to(self, target_xyz, label: str = "") -> None:
         target_xyz = np.array(target_xyz, dtype=float)
-        for attempt in (1, 2):
+        for attempt in (1, 2, 3):
             current = self.current_xyz()
             delta = target_xyz - current
             try:
+                if self.action_callback is not None:
+                    self.action_callback(
+                        "cartesian_move",
+                        {
+                            "label": label,
+                            "target_xyz": target_xyz.tolist(),
+                            "current_xyz": current.tolist(),
+                            "delta_xyz": delta.tolist(),
+                            "attempt": attempt,
+                        },
+                    )
                 self.robot.move(CartesianMotion(self._absolute_pose_at(target_xyz), ReferenceType.Absolute))
+                if self.settle_time > 0:
+                    time.sleep(self.settle_time)
                 return
             except Exception as e:
-                if "reflex" not in str(e).lower() or attempt == 2:
+                message = str(e).lower()
+                retriable = (
+                    "reflex" in message
+                    or "still moving" in message
+                    or "discontinuity" in message
+                    or "violation" in message
+                )
+                if not retriable or attempt == 3:
                     raise
-                print(f"    [reflex] {label or 'move'} aborted mid-motion — recovering, retrying at half speed...")
+                if self.retry_policy == "fail_fast":
+                    raise
+                retry_text = "retrying at the same speed" if self.retry_policy == "same_speed" else "retrying slower"
+                print(f"    [retry] {label or 'move'} command was not accepted cleanly — waiting, recovering if needed, {retry_text}...")
                 print(f"             current=({current[0]:+.3f},{current[1]:+.3f},{current[2]:+.3f}) "
                       f"target=({target_xyz[0]:+.3f},{target_xyz[1]:+.3f},{target_xyz[2]:+.3f}) "
                       f"delta=({delta[0]:+.3f},{delta[1]:+.3f},{delta[2]:+.3f})")
-                self.robot.recover_from_errors()
-                self.robot.relative_dynamics_factor = self.dynamics_factor / 2
+                time.sleep(max(0.30, self.settle_time * 3))
+                if "reflex" in message:
+                    self.robot.recover_from_errors()
+                if self.retry_policy == "retry_slower":
+                    self.robot.relative_dynamics_factor = self.dynamics_factor / 2
+                else:
+                    self.robot.relative_dynamics_factor = self.dynamics_factor
 
     def move_in_steps(self, target_xyz, label: str = "", max_step: float | None = None) -> None:
         target_xyz = np.array(target_xyz, dtype=float)
@@ -93,11 +131,21 @@ class MotionPlanner:
                 return
             except Exception as e:
                 message = str(e).lower()
-                if "reflex" not in message and "violation" not in message:
+                if (
+                    "reflex" not in message
+                    and "violation" not in message
+                    and "still moving" not in message
+                    and "discontinuity" not in message
+                ):
+                    raise
+                if not self.allow_segment_fallback:
                     raise
                 print(f"    [fallback] {label or 'move'} failed as one smooth segment; retrying with 3 cm segments.")
                 self.robot.recover_from_errors()
-                self.robot.relative_dynamics_factor = self.dynamics_factor / 2
+                if self.retry_policy == "retry_slower":
+                    self.robot.relative_dynamics_factor = self.dynamics_factor / 2
+                else:
+                    self.robot.relative_dynamics_factor = self.dynamics_factor
                 self.move_in_steps(target_xyz, label, max_step=0.03)
             return
         current = self.current_xyz()

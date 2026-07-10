@@ -17,6 +17,7 @@ Usage:
         --nx 3 --ny 3
 """
 import argparse
+import atexit
 import itertools
 import json
 import signal
@@ -36,12 +37,24 @@ from franka_motion import (
     reset_dynamics,
 )
 from grid_utils import basket_polygon_from_points, inside_basket_exclusion
+from create_grid_tracker import worksheet_xml, write_xlsx
+from filter_grid_tracker import read_tracker
+from realsense_recorder import RealSenseEpisodeRecorder
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--robot_ip", type=str, required=True)
 parser.add_argument("--points", type=str, default="probed_points.json")
 parser.add_argument("--cells_json", type=str, default=None,
                     help="Optional JSON exported by filter_grid_tracker.py. If set, use those cells instead of generating a grid.")
+parser.add_argument("--status_tracker", type=str, default=None,
+                    help="Optional tracker .xlsx to update PASS/FAIL/SKIP by printed_cell during execution.")
+parser.add_argument("--record_dir", type=str, default=None,
+                    help="If set, record RealSense RGB episodes for the cell-pick-to-basket segment.")
+parser.add_argument("--camera_serial", type=str, action="append", default=None,
+                    help="RealSense serial to record. Repeat for multiple cameras. Defaults to all connected cameras.")
+parser.add_argument("--camera_width", type=int, default=640)
+parser.add_argument("--camera_height", type=int, default=480)
+parser.add_argument("--camera_fps", type=int, default=60)
 parser.add_argument("--nx", type=int, default=3)
 parser.add_argument("--ny", type=int, default=3)
 parser.add_argument("--basket_w", type=float, default=0.154)
@@ -70,6 +83,14 @@ parser.add_argument("--cell_drop_clearance", type=float, default=0.04,
                     help="In recycle mode, release cube this far above the cell grasp height instead of setting it down.")
 parser.add_argument("--post_cell_pause", type=float, default=0.0,
                     help="Seconds to pause after each completed/skipped/failed cell before continuing.")
+parser.add_argument("--settle_time", type=float, default=0.10,
+                    help="Seconds to wait after each Cartesian move before sending the next command.")
+parser.add_argument("--motion_retry_policy", choices=["retry_slower", "same_speed", "fail_fast"], default="fail_fast",
+                    help="For dataset consistency, fail_fast avoids slower retries and segmented fallback.")
+parser.add_argument("--allow_segment_fallback", action="store_true", default=False,
+                    help="Allow fallback from one smooth move to segmented motion after a rejected command.")
+parser.add_argument("--episode_retries", type=int, default=1,
+                    help="Recorded-segment retries per cell before marking FAIL.")
 parser.add_argument("--max_step", type=float, default=0.03,
                     help="Maximum Cartesian segment length, meters. Use 0 for one smooth move per leg.")
 parser.add_argument("--travel_extra_clearance", type=float, default=0.08,
@@ -98,9 +119,96 @@ parser.add_argument("--start_cell", type=int, default=0,
                     help="Zero-based cell index to start from after filtering.")
 parser.add_argument("--end_cell", type=int, default=None,
                     help="Zero-based cell index to stop at after filtering, inclusive.")
+parser.add_argument("--resume_file", type=Path, default=Path("next_cell_to_record.txt"),
+                    help="Text file updated with the next cell to record.")
+parser.add_argument("--resume_from_file", action="store_true",
+                    help="Start from --resume_file's next_printed_cell when using --cells_json.")
 args = parser.parse_args()
 if args.max_cells is not None and args.max_cells <= 0:
     raise SystemExit("--max_cells must be positive.")
+
+CURRENT_SOURCE = None
+recorder = None
+
+
+class MotionExecutionFailure(RuntimeError):
+    pass
+
+
+def source_label(source: dict | None, selected_index: int) -> str:
+    if source is not None and "printed_cell" in source:
+        return f"printed_cell_{int(source['printed_cell']):03d}"
+    return f"selected_index_{selected_index:03d}"
+
+
+def read_resume_printed_cell(path: Path) -> int | None:
+    if not path.exists():
+        return None
+    text = path.read_text().strip()
+    if not text:
+        return None
+    try:
+        data = json.loads(text)
+        value = data.get("next_printed_cell")
+    except json.JSONDecodeError:
+        value = text
+    if value in (None, "", "DONE"):
+        return None
+    return int(value)
+
+
+def write_resume_file(source: dict | None, run_index: int | None, status: str) -> None:
+    payload = {
+        "status": status,
+        "run_index": run_index,
+        "next_printed_cell": None,
+        "next_selected_index": None,
+        "next_generated_index": None,
+        "updated_time_ns": time.time_ns(),
+    }
+    if source is not None:
+        payload["next_printed_cell"] = int(source["printed_cell"])
+        payload["next_selected_index"] = int(source["selected_index"])
+        payload["next_generated_index"] = int(source["generated_index"])
+    args.resume_file.write_text(json.dumps(payload, indent=2) + "\n")
+
+
+def update_status_tracker(source: dict | None, status: str, note: str = "") -> None:
+    if not args.status_tracker or source is None:
+        return
+    tracker_path = Path(args.status_tracker)
+    printed_cell = int(source["printed_cell"])
+    rows = read_tracker(tracker_path)
+    updated = False
+    for row in rows:
+        if int(row["printed_cell"]) == printed_cell:
+            row["status"] = status
+            if note:
+                old_note = str(row.get("notes") or "")
+                row["notes"] = note if not old_note else f"{old_note}; {note}"
+            updated = True
+            break
+    if not updated:
+        print(f"  [tracker] printed_cell={printed_cell} not found in {tracker_path}; status not updated.")
+        return
+    sheet = worksheet_xml(rows, args.hover_clearance, args.cube_height, args.grasp_lowering)
+    write_xlsx(tracker_path, sheet)
+    print(f"  [tracker] marked printed_cell={printed_cell} as {status} in {tracker_path}")
+
+
+def mark_current_fail(note: str) -> None:
+    if recorder is not None and recorder.active:
+        update_status_tracker(CURRENT_SOURCE, "FAIL", note)
+        recorder.stop_episode(False, {"failure_note": note})
+
+
+def _excepthook(exc_type, exc, tb):
+    if exc_type is not KeyboardInterrupt:
+        mark_current_fail(f"exception: {exc_type.__name__}")
+    sys.__excepthook__(exc_type, exc, tb)
+
+
+sys.excepthook = _excepthook
 
 pts = json.loads(Path(args.points).read_text())
 required = ["bottom_left", "bottom_right", "top_left", "top_right", "pad_center", "basket_rim"]
@@ -169,6 +277,36 @@ if args.printed_cell:
     cell_records = [record for _, record in matched]
     print(f"[grid] selected tracker printed_cell values: {sorted(wanted)} ({len(cells)} matched)")
 
+if args.resume_from_file:
+    if cell_records is None:
+        raise SystemExit("--resume_from_file requires --cells_json.")
+    resume_printed_cell = read_resume_printed_cell(args.resume_file)
+    if resume_printed_cell is not None:
+        start_idx = next(
+            (idx for idx, record in enumerate(cell_records) if int(record["printed_cell"]) == resume_printed_cell),
+            None,
+        )
+        if start_idx is None:
+            greater_idx = next(
+                (idx for idx, record in enumerate(cell_records) if int(record["printed_cell"]) > resume_printed_cell),
+                None,
+            )
+            if greater_idx is None:
+                print(f"[resume] next_printed_cell={resume_printed_cell} is past the end of the current cells JSON.")
+                cells = []
+                cell_records = []
+            else:
+                print(f"[resume] next_printed_cell={resume_printed_cell} was removed; resuming at next available "
+                      f"printed_cell={cell_records[greater_idx]['printed_cell']}.")
+                cells = cells[greater_idx:]
+                cell_records = cell_records[greater_idx:]
+        else:
+            print(f"[resume] starting from resume file printed_cell={resume_printed_cell} at current JSON index {start_idx}.")
+            cells = cells[start_idx:]
+            cell_records = cell_records[start_idx:]
+    else:
+        print(f"[resume] no usable next_printed_cell in {args.resume_file}; starting from selected cells.")
+
 if args.start_cell or args.end_cell is not None:
     end = len(cells) - 1 if args.end_cell is None else args.end_cell
     cells = cells[args.start_cell:end + 1]
@@ -198,6 +336,18 @@ if args.recycle_from_basket:
     print(f"[recycle] cell_drop_clearance={args.cell_drop_clearance:.3f}")
 print("[reminder] orient the cube so its SHORT (4x4cm) face is between the gripper fingers.\n")
 
+if args.record_dir:
+    print(f"[record] preparing RealSense recorder in {args.record_dir}")
+    recorder = RealSenseEpisodeRecorder(
+        args.record_dir,
+        serials=args.camera_serial,
+        width=args.camera_width,
+        height=args.camera_height,
+        fps=args.camera_fps,
+    )
+    atexit.register(recorder.close)
+    print(f"[record] cameras: {', '.join(recorder.camera_names)}")
+
 input("[SAFETY] Confirm workspace AND path over the basket are clear. Press Enter to connect...")
 
 from franky import Robot, Gripper  # noqa: E402
@@ -209,6 +359,7 @@ gripper = Gripper(args.robot_ip)
 
 def _sigint_handler(signum, frame):
     print("\n[KILLSWITCH] Ctrl+C received — stopping robot motion now.")
+    mark_current_fail("interrupted")
     try:
         robot.stop()
         print("[KILLSWITCH] robot.stop() called.")
@@ -241,16 +392,28 @@ print(f"[robot] tcp_offset={args.tcp_offset:.4f}  min_flange_z={args.min_flange_
 print(f"[robot] travel_z_floor={travel_z_floor:+.4f} "
       f"(extra clearance {args.travel_extra_clearance:.3f}; travel_above_home={args.travel_above_home})\n")
 
-motion = MotionPlanner(robot, args.dynamics_factor, args.max_step, travel_z_floor)
+if recorder is not None:
+    recorder.attach_robot(robot, gripper, sample_hz=args.camera_fps)
+
+motion = MotionPlanner(
+    robot,
+    args.dynamics_factor,
+    args.max_step,
+    travel_z_floor,
+    args.settle_time,
+    action_callback=(recorder.log_action if recorder is not None else None),
+    retry_policy=args.motion_retry_policy,
+    allow_segment_fallback=args.allow_segment_fallback,
+)
 
 
 def open_and_stop_after_motion_failure(context: str, exc: Exception) -> None:
     print(f"  [fail] {context} failed: {exc}")
-    print("  [fail] opening gripper. Mark this tracker cell as FAIL/SKIP and hand-guide back to home if needed.")
+    print("  [fail] opening gripper and handing failure back to the episode controller.")
     try:
         gripper.open(args.open_speed)
     finally:
-        raise SystemExit("[robot] stopped after motion failure to avoid commanding more motion from a bad pose.")
+        raise MotionExecutionFailure(context) from exc
 
 
 def pick_from_pose(xyz: np.ndarray, hover_z: float, grasp_z: float, label: str) -> bool:
@@ -281,6 +444,93 @@ def place_at_pose(xyz: np.ndarray, hover_z: float, place_z: float, label: str) -
     motion.move_in_steps(np.array([xyz[0], xyz[1], hover_z]), f"{label}: retreat to hover")
 
 
+def start_cell_recording(source: dict | None, selected_index: int, cell_xyz: np.ndarray, table_z: float) -> None:
+    if recorder is None:
+        return
+    stamp = time.strftime("%Y%m%d_%H%M%S")
+    episode_name = f"{stamp}_{source_label(source, selected_index)}"
+    metadata = {
+        "robot_ip": args.robot_ip,
+        "mode": "basket_recycle" if args.recycle_from_basket else "manual_cell_placement",
+        "selected_index": selected_index,
+        "cell_xyz": [float(cell_xyz[0]), float(cell_xyz[1]), float(cell_xyz[2])],
+        "table_z": float(table_z),
+        "home_xyz": [float(home_xyz[0]), float(home_xyz[1]), float(home_xyz[2])],
+        "hover_clearance": args.hover_clearance,
+        "cube_height": args.cube_height,
+        "grasp_lowering": args.grasp_lowering,
+        "cell_drop_clearance": args.cell_drop_clearance,
+    }
+    if source is not None:
+        metadata["source"] = dict(source)
+    recorder.start_episode(episode_name, metadata)
+    recorder.add_event("cube_on_cell_home_reached")
+
+
+def stop_cell_recording(success: bool, note: str) -> None:
+    if recorder is None or not recorder.active:
+        return
+    try:
+        recorder.add_event("episode_stop_requested", {"success": success, "note": note})
+        recorder.stop_episode(success, {"note": note})
+    except Exception as e:
+        print(f"  [record-fail] could not stop/write recording cleanly: {e}")
+        try:
+            recorder.active = False
+        except Exception:
+            pass
+        update_status_tracker(CURRENT_SOURCE, "RECORDING_FAIL", f"{note}; recorder error: {type(e).__name__}")
+
+
+def recover_for_episode_retry(context: str, cube_may_be_held: bool) -> bool:
+    print(f"  [retry] recorded attempt failed during {context}; discarding this episode.")
+    stop_cell_recording(False, context)
+    try:
+        if robot.has_errors:
+            robot.recover_from_errors()
+        reset_dynamics(robot, args.dynamics_factor)
+        if cube_may_be_held and gripper.is_grasped:
+            print("  [retry] cube appears grasped; returning it to the basket before retrying.")
+            current = motion.current_xyz()
+            motion.move_in_steps(np.array([current[0], current[1], transport_flange_z]), "retry recovery: rise")
+            place_at_pose(PAD, transport_flange_z, release_flange_z, "retry recovery: place in basket")
+            motion.travel_to(home_xyz, home_xyz[2], "retry recovery: home")
+            print("  [retry] placing cube back on the cell for a clean retry.")
+            gripper.open(args.open_speed)
+            basket_picked = pick_from_pose(PAD, transport_flange_z, basket_grasp_flange_z, "retry basket pickup")
+            if not basket_picked:
+                return False
+            place_at_pose(cell_xyz, hover_flange_z, cell_drop_flange_z, "retry drop on cell")
+            motion.travel_to(home_xyz, home_xyz[2], "retry home after cell placement")
+        else:
+            print("  [retry] cube should still be on the cell; returning home and retrying from there.")
+            gripper.open(args.open_speed)
+            motion.travel_to(home_xyz, home_xyz[2], "retry recovery: home")
+        return True
+    except Exception as e:
+        print(f"  [fail] automatic retry recovery failed: {e}")
+        stop_cell_recording(False, f"recovery failed: {type(e).__name__}")
+        try:
+            gripper.open(args.open_speed)
+        finally:
+            return False
+
+
+def stop_after_setup_failure(source: dict | None, run_index: int, context: str, exc: Exception) -> None:
+    print(f"  [setup-fail] {context}: {exc}")
+    print("  [setup-fail] no recorded episode was active; marking SETUP_FAIL and stopping for hand-guiding.")
+    update_status_tracker(source, "SETUP_FAIL", context)
+    advance_resume(run_index, "advanced_after_setup_fail")
+    if recorder is not None and recorder.active:
+        stop_cell_recording(False, f"setup failure: {context}")
+    try:
+        if robot.has_errors:
+            robot.recover_from_errors()
+        gripper.open(args.open_speed)
+    finally:
+        raise SystemExit("[robot] stopped after setup failure. Hand-guide home, then restart from this cell.")
+
+
 if args.recycle_from_basket:
     input("[SETUP] Put the cube in the basket at pad_center, with the same orientation as normal grasping. Press Enter...")
 
@@ -291,9 +541,17 @@ def post_cell_pause() -> None:
         time.sleep(args.post_cell_pause)
 
 
+def advance_resume(run_index: int, status: str) -> None:
+    next_index = run_index + 1
+    next_source = cell_records[next_index] if cell_records is not None and next_index < len(cell_records) else None
+    write_resume_file(next_source, next_index if next_source is not None else None, status)
+
+
 results = []
 for k, cell_xyz in enumerate(cells):
     source = cell_records[k] if cell_records is not None else None
+    CURRENT_SOURCE = source
+    write_resume_file(source, k, "current")
     table_z = float(cell_xyz[2])
     hover_tcp_z = table_z + args.hover_clearance
     grasp_tcp_z = table_z + args.cube_height / 2 - args.grasp_lowering
@@ -325,39 +583,74 @@ for k, cell_xyz in enumerate(cells):
 
     if args.recycle_from_basket:
         print("  [auto] recycling cube: basket -> cell -> home -> cell -> basket.")
-        reset_dynamics(robot, args.dynamics_factor)
-        gripper.open(args.open_speed)
-        basket_picked = pick_from_pose(PAD, transport_flange_z, basket_grasp_flange_z, "basket pickup")
-        if not basket_picked:
-            print("  [fail] could not pick cube from basket; stopping before moving to cell.")
+        try:
+            reset_dynamics(robot, args.dynamics_factor)
             gripper.open(args.open_speed)
-            motion.travel_to(home_xyz, home_xyz[2], "retreat home")
-            results.append(False)
-            post_cell_pause()
-            continue
+            basket_picked = pick_from_pose(PAD, transport_flange_z, basket_grasp_flange_z, "basket pickup")
+            if not basket_picked:
+                print("  [setup-fail] could not pick cube from basket; stopping before moving to cell.")
+                gripper.open(args.open_speed)
+                motion.travel_to(home_xyz, home_xyz[2], "retreat home")
+                results.append(False)
+                update_status_tracker(source, "SETUP_FAIL", "basket pickup failed")
+                advance_resume(k, "advanced_after_setup_fail")
+                post_cell_pause()
+                continue
 
-        print(f"  [auto] dropping cube on cell from z={cell_drop_flange_z:+.4f} "
-              f"(grasp_z={grasp_flange_z:+.4f}, clearance={args.cell_drop_clearance:.3f}).")
-        place_at_pose(cell_xyz, hover_flange_z, cell_drop_flange_z, "drop on cell")
-        motion.travel_to(home_xyz, home_xyz[2], "retreat home after cell placement")
-        print("  [auto] cube placed on cell; returning from home to pick it into basket.")
+            print(f"  [auto] dropping cube on cell from z={cell_drop_flange_z:+.4f} "
+                  f"(grasp_z={grasp_flange_z:+.4f}, clearance={args.cell_drop_clearance:.3f}).")
+            place_at_pose(cell_xyz, hover_flange_z, cell_drop_flange_z, "drop on cell")
+            motion.travel_to(home_xyz, home_xyz[2], "retreat home after cell placement")
+            print("  [auto] cube placed on cell; returning from home to pick it into basket.")
+        except Exception as e:
+            stop_after_setup_failure(source, k, "basket-to-cell setup failed", e)
 
-        gripper.open(args.open_speed)
-        cell_picked = pick_from_pose(cell_xyz, hover_flange_z, grasp_flange_z, "cell pickup")
-        if not cell_picked:
-            print("  [fail] grasp did not hold from cell — releasing and retreating without transport.")
-            gripper.open(args.open_speed)
-            motion.travel_to(home_xyz, home_xyz[2], "retreat home")
-            results.append(False)
-            post_cell_pause()
-            continue
+        cell_success = False
+        retry_note = ""
+        for attempt in range(1, args.episode_retries + 2):
+            if attempt > 1:
+                print(f"  [retry] starting clean recorded attempt {attempt}/{args.episode_retries + 1} at same speed.")
+            cube_may_be_held = False
+            start_cell_recording(source, k, cell_xyz, table_z)
+            try:
+                gripper.open(args.open_speed)
+                cell_picked = pick_from_pose(cell_xyz, hover_flange_z, grasp_flange_z, "cell pickup")
+                cube_may_be_held = bool(cell_picked)
+                if not cell_picked:
+                    retry_note = "cell pickup failed"
+                    stop_cell_recording(False, retry_note)
+                    gripper.open(args.open_speed)
+                    motion.travel_to(home_xyz, home_xyz[2], "retreat home")
+                    if attempt <= args.episode_retries:
+                        continue
+                    break
 
-        print("  [auto] cell grasp confirmed; transporting over basket rim.")
-        motion.move_in_steps(np.array([cell_xyz[0], cell_xyz[1], transport_flange_z]), "rise to transport height")
-        place_at_pose(PAD, transport_flange_z, release_flange_z, "place in basket")
-        motion.travel_to(home_xyz, home_xyz[2], "retreat home")
-        results.append(True)
-        print("  [done] SUCCESS.\n")
+                print("  [auto] cell grasp confirmed; transporting over basket rim.")
+                motion.move_in_steps(np.array([cell_xyz[0], cell_xyz[1], transport_flange_z]), "rise to transport height")
+                place_at_pose(PAD, transport_flange_z, release_flange_z, "place in basket")
+                motion.travel_to(home_xyz, home_xyz[2], "retreat home")
+                stop_cell_recording(True, "auto basket recycle success")
+                cell_success = True
+                break
+            except Exception as e:
+                retry_note = f"recorded attempt exception: {type(e).__name__}"
+                if attempt > args.episode_retries:
+                    stop_cell_recording(False, retry_note)
+                    raise
+                recovered = recover_for_episode_retry(retry_note, cube_may_be_held)
+                if not recovered:
+                    retry_note = "automatic retry recovery failed"
+                    break
+
+        results.append(cell_success)
+        if cell_success:
+            print("  [done] SUCCESS.\n")
+            update_status_tracker(source, "PASS", "auto basket recycle success")
+            advance_resume(k, "advanced_after_success")
+        else:
+            print("  [done] FAIL.\n")
+            update_status_tracker(source, "FAIL", retry_note or "recorded attempt failed")
+            advance_resume(k, "advanced_after_fail")
         post_cell_pause()
         continue
 
@@ -378,11 +671,14 @@ for k, cell_xyz in enumerate(cells):
     if ans.strip().lower() == "s":
         motion.travel_to(home_xyz, home_xyz[2], "retreat home")
         print("  [skip]\n")
+        update_status_tracker(source, "SKIP", "operator skipped")
+        advance_resume(k, "advanced_after_skip")
         post_cell_pause()
         continue
 
     motion.travel_to(home_xyz, home_xyz[2], "retreat home before auto pick")
     print("  [auto] starting pick-place sequence; no more prompts for this cell.")
+    start_cell_recording(source, k, cell_xyz, table_z)
     reset_dynamics(robot, args.dynamics_factor)
     gripper.open(args.open_speed)
     motion.travel_to(cell_xyz, hover_flange_z, "auto return to hover")
@@ -401,6 +697,7 @@ for k, cell_xyz in enumerate(cells):
         try:
             gripper.open(args.open_speed)
         finally:
+            stop_cell_recording(False, "lift from grasp pose failed")
             raise SystemExit("[robot] stopped after lift failure to avoid commanding more motion from a singular pose.")
     print(f"  [verify] is_grasped={still_holding}")
 
@@ -408,8 +705,11 @@ for k, cell_xyz in enumerate(cells):
         print("  [fail] grasp did not hold — releasing and retreating without transport.")
         gripper.open(args.open_speed)
         motion.travel_to(home_xyz, home_xyz[2], "retreat home")
+        stop_cell_recording(False, "grasp did not hold")
         results.append(False)
         print("  [done] FAIL.\n")
+        update_status_tracker(source, "FAIL", "grasp did not hold")
+        advance_resume(k, "advanced_after_fail")
         post_cell_pause()
         continue
 
@@ -423,10 +723,14 @@ for k, cell_xyz in enumerate(cells):
 
     motion.move_in_steps(np.array([PAD[0], PAD[1], transport_flange_z]), "rise out of basket")
     motion.travel_to(home_xyz, home_xyz[2], "retreat home")
+    stop_cell_recording(True, "manual placement success")
     results.append(True)
     print("  [done] SUCCESS.\n")
+    update_status_tracker(source, "PASS", "manual placement success")
+    advance_resume(k, "advanced_after_success")
     post_cell_pause()
 
 n = len(results)
 s = sum(results)
+write_resume_file(None, None, "done")
 print(f"=== PICK-AND-PLACE COMPLETE: {s}/{n} succeeded ===" if n else "=== no cells attempted ===")
