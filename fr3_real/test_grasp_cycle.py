@@ -77,6 +77,8 @@ parser.add_argument("--pause_before_hover_descent", action="store_true", default
                     help="Pause above each target before descending to hover.")
 parser.add_argument("--no_pause_before_hover_descent", action="store_false", dest="pause_before_hover_descent",
                     help="Do not pause above each target before descending to hover.")
+parser.add_argument("--settle_time", type=float, default=0.10,
+                    help="Seconds to wait after each Cartesian move before sending the next command.")
 parser.add_argument("--skip_cell", type=int, action="append", default=[],
                     help="Zero-based generated cell index to skip. Can be passed multiple times.")
 parser.add_argument("--max_cells", type=int, default=None,
@@ -189,7 +191,7 @@ print(f"[robot] tcp_offset={args.tcp_offset:.4f}  min_flange_z={args.min_flange_
 print(f"[robot] travel_z_floor={travel_z_floor:+.4f} "
       f"(extra clearance {args.travel_extra_clearance:.3f}; travel_above_home={args.travel_above_home})\n")
 
-motion = MotionPlanner(robot, args.dynamics_factor, args.max_step, travel_z_floor)
+motion = MotionPlanner(robot, args.dynamics_factor, args.max_step, travel_z_floor, args.settle_time)
 
 
 results = []

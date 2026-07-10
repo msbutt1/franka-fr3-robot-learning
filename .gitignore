@@ -5,3 +5,4 @@ venv/
 .env
 .DS_Store
 .~lock.*#
+fr3_real/recordings/

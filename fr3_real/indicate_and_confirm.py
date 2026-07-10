@@ -80,6 +80,8 @@ parser.add_argument("--allow_hover_descent", action="store_true",
                     help="Actually descend from the travel plane to table_z + hover_clearance.")
 parser.add_argument("--auto_retreat_after_hover_descent", action="store_true",
                     help="After an allowed hover descent, try to return home automatically.")
+parser.add_argument("--settle_time", type=float, default=0.10,
+                    help="Seconds to wait after each Cartesian move before sending the next command.")
 parser.add_argument("--skip_cell", type=int, action="append", default=[],
                     help="Zero-based generated cell index to skip. Can be passed multiple times.")
 parser.add_argument("--max_cells", type=int, default=None,
@@ -182,7 +184,7 @@ print(f"[robot] travel_z_floor={travel_z_floor:+.4f} "
       f"(extra clearance {args.travel_extra_clearance:.3f}; travel_above_home={args.travel_above_home})")
 print("[robot] this pose will always be returned to between cells.\n")
 
-motion = MotionPlanner(robot, args.dynamics_factor, args.max_step, travel_z_floor)
+motion = MotionPlanner(robot, args.dynamics_factor, args.max_step, travel_z_floor, args.settle_time)
 
 for k, cell_xyz in enumerate(cells):
     hover_tcp_z = float(cell_xyz[2] + args.hover_clearance)
