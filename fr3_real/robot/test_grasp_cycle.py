@@ -13,7 +13,7 @@ zero risk near the basket (basket transport is Stage B, added once basket_rim is
 probed).
 
 Usage:
-    python test_grasp_cycle.py --robot_ip 172.16.0.2 --points probed_points.json \\
+    python fr3_real/robot/test_grasp_cycle.py --robot_ip 172.16.0.2 \\
         --nx 3 --ny 3 --grasp_width 0.04 --cube_height 0.04
 """
 import argparse
@@ -24,7 +24,11 @@ import sys
 from pathlib import Path
 
 import numpy as np
-from franka_motion import (
+
+if __package__ is None or __package__ == "":
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from fr3_real.common.franka_motion import (
     DEFAULT_FRANKA_HAND_TCP_OFFSET,
     MotionPlanner,
     assert_safe_flange_z,
@@ -34,11 +38,12 @@ from franka_motion import (
     flange_z_for_tcp_z,
     reset_dynamics,
 )
-from grid_utils import basket_polygon_from_points, inside_basket_exclusion
+from fr3_real.common.grid_utils import basket_polygon_from_points, inside_basket_exclusion
+from fr3_real.paths import DEFAULT_POINTS_PATH
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--robot_ip", type=str, required=True)
-parser.add_argument("--points", type=str, default="probed_points.json")
+parser.add_argument("--points", type=str, default=str(DEFAULT_POINTS_PATH))
 parser.add_argument("--nx", type=int, default=3)
 parser.add_argument("--ny", type=int, default=3)
 parser.add_argument("--basket_w", type=float, default=0.154)

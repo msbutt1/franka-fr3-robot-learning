@@ -11,7 +11,7 @@ On the robot (Franka Desk):
     - FCI activated
 
 Usage:
-    python test_connection.py --robot_ip 172.16.0.2
+    python fr3_real/robot/test_connection.py --robot_ip 172.16.0.2
 """
 import argparse
 

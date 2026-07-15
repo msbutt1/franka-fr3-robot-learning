@@ -12,7 +12,7 @@ LOWER_TORQUE_THRESHOLDS = [20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0]
 UPPER_TORQUE_THRESHOLDS = [20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0]
 LOWER_FORCE_THRESHOLDS = [20.0, 20.0, 20.0, 25.0, 25.0, 25.0]
 UPPER_FORCE_THRESHOLDS = [20.0, 20.0, 20.0, 25.0, 25.0, 25.0]
-# probe_points.py records robot.current_pose.end_effector_pose.translation while
+# fr3_real/robot/probe_points.py records robot.current_pose.end_effector_pose.translation while
 # the physical tip is placed on the table. The safest default is therefore no
 # extra offset: command the same frame that was probed. Override only after a
 # live touch test proves the reported pose is a flange frame.

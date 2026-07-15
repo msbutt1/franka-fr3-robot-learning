@@ -4,7 +4,7 @@
 Typical use:
   1. Mark tracker rows as PASS, FAIL, or SKIP in the status column.
   2. Run this script to remove FAIL/SKIP rows.
-  3. Pass the produced JSON to pick_and_place.py with --cells_json.
+  3. Pass the produced JSON to fr3_real/robot/pick_and_place.py with --cells_json.
 """
 
 from __future__ import annotations
@@ -12,11 +12,21 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 import zipfile
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
-from create_grid_tracker import build_cells, worksheet_xml, write_xlsx
+if __package__ is None or __package__ == "":
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from fr3_real.grid.create_grid_tracker import build_cells, worksheet_xml, write_xlsx
+from fr3_real.paths import (
+    DEFAULT_GRID_TRACKER_PATH,
+    DEFAULT_POINTS_PATH,
+    DEFAULT_WORKING_CELLS_PATH,
+    DEFAULT_WORKING_TRACKER_PATH,
+)
 
 
 NS = {"x": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
@@ -154,9 +164,9 @@ def replenish_cells(
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--tracker", default="fr3_100_cell_tracker.xlsx")
-    parser.add_argument("--out_xlsx", default="fr3_working_cell_tracker.xlsx")
-    parser.add_argument("--out_json", default="working_cells.json")
+    parser.add_argument("--tracker", default=str(DEFAULT_GRID_TRACKER_PATH))
+    parser.add_argument("--out_xlsx", default=str(DEFAULT_WORKING_TRACKER_PATH))
+    parser.add_argument("--out_json", default=str(DEFAULT_WORKING_CELLS_PATH))
     parser.add_argument("--drop_status", action="append", default=["FAIL", "SKIP"],
                         help="Status to remove. Defaults to FAIL and SKIP. Can be repeated.")
     parser.add_argument("--keep_status", action="append", default=None,
@@ -166,7 +176,7 @@ def main() -> None:
     parser.add_argument("--grasp_lowering", type=float, default=0.0)
     parser.add_argument("--target_count", type=int, default=None,
                         help="Top filtered cells back up to this count using replacement candidates.")
-    parser.add_argument("--points", default="probed_points.json",
+    parser.add_argument("--points", default=str(DEFAULT_POINTS_PATH),
                         help="Probed points JSON used when --target_count needs replacement cells.")
     parser.add_argument("--candidate_nx", type=int, default=16)
     parser.add_argument("--candidate_ny", type=int, default=16)
@@ -207,7 +217,9 @@ def main() -> None:
 
     sheet = worksheet_xml(filtered, args.hover_clearance, args.cube_height, args.grasp_lowering)
     write_xlsx(Path(args.out_xlsx), sheet)
-    Path(args.out_json).write_text(json.dumps({"cells": filtered}, indent=2) + "\n")
+    out_json = Path(args.out_json)
+    out_json.parent.mkdir(parents=True, exist_ok=True)
+    out_json.write_text(json.dumps({"cells": filtered}, indent=2) + "\n")
     print(f"read {len(cells)} cells")
     if args.target_count is not None:
         print(f"replenished {before_replenish} -> {len(filtered)} cells")

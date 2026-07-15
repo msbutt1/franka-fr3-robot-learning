@@ -3,14 +3,19 @@
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
-from filter_grid_tracker import read_tracker
+if __package__ is None or __package__ == "":
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from fr3_real.grid.filter_grid_tracker import read_tracker
+from fr3_real.paths import DEFAULT_ALL_WORKING_CELLS_PATH, DEFAULT_ALL_WORKING_TRACKER_PATH
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--cells_json", type=Path, default=Path("all_working_cells.json"))
-parser.add_argument("--tracker", type=Path, default=Path("fr3_all_working_cell_tracker.xlsx"))
+parser.add_argument("--cells_json", type=Path, default=DEFAULT_ALL_WORKING_CELLS_PATH)
+parser.add_argument("--tracker", type=Path, default=DEFAULT_ALL_WORKING_TRACKER_PATH)
 parser.add_argument("--keep_status", type=str, action="append", default=["PASS"])
 parser.add_argument("--output", type=Path, default=None,
                     help="Defaults to overwriting --cells_json.")
@@ -31,6 +36,7 @@ removed = [cell for cell in old_cells if int(cell.get("printed_cell", -1)) not i
 
 data["cells"] = new_cells
 output = args.output or args.cells_json
+output.parent.mkdir(parents=True, exist_ok=True)
 output.write_text(json.dumps(data, indent=2) + "\n")
 
 print(f"tracker: {args.tracker}")

@@ -13,7 +13,7 @@ Orientation is never commanded -- only translations, so there is no risk from
 an unverified rotation.
 
 Usage:
-    python pick_and_place.py --robot_ip 172.16.0.2 --points probed_points.json \\
+    python fr3_real/robot/pick_and_place.py --robot_ip 172.16.0.2 \\
         --nx 3 --ny 3
 """
 import argparse
@@ -26,7 +26,11 @@ import time
 from pathlib import Path
 
 import numpy as np
-from franka_motion import (
+
+if __package__ is None or __package__ == "":
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from fr3_real.common.franka_motion import (
     DEFAULT_FRANKA_HAND_TCP_OFFSET,
     MotionPlanner,
     assert_safe_flange_z,
@@ -36,16 +40,17 @@ from franka_motion import (
     flange_z_for_tcp_z,
     reset_dynamics,
 )
-from grid_utils import basket_polygon_from_points, inside_basket_exclusion
-from create_grid_tracker import worksheet_xml, write_xlsx
-from filter_grid_tracker import read_tracker
-from realsense_recorder import RealSenseEpisodeRecorder
+from fr3_real.common.grid_utils import basket_polygon_from_points, inside_basket_exclusion
+from fr3_real.common.realsense_recorder import RealSenseEpisodeRecorder
+from fr3_real.grid.create_grid_tracker import worksheet_xml, write_xlsx
+from fr3_real.grid.filter_grid_tracker import read_tracker
+from fr3_real.paths import DEFAULT_POINTS_PATH, DEFAULT_RESUME_PATH
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--robot_ip", type=str, required=True)
-parser.add_argument("--points", type=str, default="probed_points.json")
+parser.add_argument("--points", type=str, default=str(DEFAULT_POINTS_PATH))
 parser.add_argument("--cells_json", type=str, default=None,
-                    help="Optional JSON exported by filter_grid_tracker.py. If set, use those cells instead of generating a grid.")
+                    help="Optional JSON exported by fr3_real/grid/filter_grid_tracker.py. If set, use those cells instead of generating a grid.")
 parser.add_argument("--status_tracker", type=str, default=None,
                     help="Optional tracker .xlsx to update PASS/FAIL/SKIP by printed_cell during execution.")
 parser.add_argument("--record_dir", type=str, default=None,
@@ -119,7 +124,7 @@ parser.add_argument("--start_cell", type=int, default=0,
                     help="Zero-based cell index to start from after filtering.")
 parser.add_argument("--end_cell", type=int, default=None,
                     help="Zero-based cell index to stop at after filtering, inclusive.")
-parser.add_argument("--resume_file", type=Path, default=Path("next_cell_to_record.txt"),
+parser.add_argument("--resume_file", type=Path, default=DEFAULT_RESUME_PATH,
                     help="Text file updated with the next cell to record.")
 parser.add_argument("--resume_from_file", action="store_true",
                     help="Start from --resume_file's next_printed_cell when using --cells_json.")
@@ -170,6 +175,7 @@ def write_resume_file(source: dict | None, run_index: int | None, status: str) -
         payload["next_printed_cell"] = int(source["printed_cell"])
         payload["next_selected_index"] = int(source["selected_index"])
         payload["next_generated_index"] = int(source["generated_index"])
+    args.resume_file.parent.mkdir(parents=True, exist_ok=True)
     args.resume_file.write_text(json.dumps(payload, indent=2) + "\n")
 
 

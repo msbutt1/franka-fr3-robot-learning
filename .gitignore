@@ -6,3 +6,6 @@ venv/
 .DS_Store
 .~lock.*#
 fr3_real/recordings/
+logs/
+.agents/
+fr3_raw_recordings/

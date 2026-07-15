@@ -16,12 +16,18 @@ import html
 import itertools
 import json
 import math
+import sys
 import zipfile
 from pathlib import Path
 from xml.sax.saxutils import escape
 
 import numpy as np
-from grid_utils import basket_polygon_from_points, inside_basket_exclusion
+
+if __package__ is None or __package__ == "":
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from fr3_real.common.grid_utils import basket_polygon_from_points, inside_basket_exclusion
+from fr3_real.paths import DEFAULT_GRID_TRACKER_PATH, DEFAULT_POINTS_PATH
 
 
 def col_name(index: int) -> str:
@@ -191,6 +197,7 @@ def worksheet_xml(cells, hover_clearance: float, cube_height: float, grasp_lower
 
 
 def write_xlsx(path: Path, sheet_xml: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
     content_types = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
@@ -222,8 +229,8 @@ def write_xlsx(path: Path, sheet_xml: str) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--points", default="probed_points.json")
-    parser.add_argument("--out", default="fr3_100_cell_tracker.xlsx")
+    parser.add_argument("--points", default=str(DEFAULT_POINTS_PATH))
+    parser.add_argument("--out", default=str(DEFAULT_GRID_TRACKER_PATH))
     parser.add_argument("--nx", type=int, default=11)
     parser.add_argument("--ny", type=int, default=11)
     parser.add_argument("--max_cells", type=int, default=100)

@@ -9,13 +9,19 @@ is reporting flange/control-frame height and you need a positive offset.
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 import numpy as np
 
+if __package__ is None or __package__ == "":
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from fr3_real.paths import DEFAULT_POINTS_PATH
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--robot_ip", type=str, required=True)
-parser.add_argument("--points", type=str, default="probed_points.json")
+parser.add_argument("--points", type=str, default=str(DEFAULT_POINTS_PATH))
 parser.add_argument("--label", type=str, default="table_z",
                     help="Point label from probed_points.json to compare against.")
 args = parser.parse_args()

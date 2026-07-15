@@ -9,9 +9,14 @@ table and that +X/+Y match the printed base-frame pose convention.
 import argparse
 import signal
 import sys
+from pathlib import Path
 
 import numpy as np
-from franka_motion import clear_robot_errors, configure_collision_behavior
+
+if __package__ is None or __package__ == "":
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from fr3_real.common.franka_motion import clear_robot_errors, configure_collision_behavior
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--robot_ip", type=str, required=True)

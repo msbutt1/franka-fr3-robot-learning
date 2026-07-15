@@ -2,13 +2,19 @@
 """Camera-only RealSense recording sanity check."""
 
 import argparse
+import sys
 import time
+from pathlib import Path
 
-from realsense_recorder import RealSenseEpisodeRecorder
+if __package__ is None or __package__ == "":
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from fr3_real.common.realsense_recorder import RealSenseEpisodeRecorder
+from fr3_real.paths import DEFAULT_CAMERA_TEST_RECORD_DIR
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--record_dir", type=str, default="recordings/camera_test")
+parser.add_argument("--record_dir", type=str, default=str(DEFAULT_CAMERA_TEST_RECORD_DIR))
 parser.add_argument("--camera_serial", type=str, action="append", default=None)
 parser.add_argument("--camera_width", type=int, default=640)
 parser.add_argument("--camera_height", type=int, default=480)

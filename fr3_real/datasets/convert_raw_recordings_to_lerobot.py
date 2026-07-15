@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Convert FR3 raw recording episodes into a LeRobotDataset.
 
-This converter expects episode folders produced by realsense_recorder.py:
+This converter expects episode folders produced by fr3_real.common.realsense_recorder:
 metadata.json, robot_state.jsonl, actions.jsonl, and camera_*_rgb.mp4 files.
 It uses LeRobot's writer API so the output is a normal LeRobot dataset with
 Parquet state/action data and MP4 camera observations.
@@ -28,6 +28,10 @@ FR3_FULL_STATE_NAMES = (
 FR3_FULL_ACTION_NAMES = ["target.ee.x", "target.ee.y", "target.ee.z", "target.ee.qx", "target.ee.qy", "target.ee.qz", "target.ee.qw", "target.gripper.width"]
 DROID_STATE_NAMES = ["ee.x", "ee.y", "ee.z", "ee.qx", "ee.qy", "ee.qz", "ee.qw", "gripper.closedness"]
 DROID_ACTION_NAMES = ["delta.ee.x", "delta.ee.y", "delta.ee.z", "delta.ee.rx", "delta.ee.ry", "delta.ee.rz", "gripper.closedness"]
+OPENPI_DROID_CAMERA_KEYS = ("exterior_image_1_left", "wrist_image_left")
+OPENPI_DROID_JOINT_POSITION_NAMES = [f"joint_{i}.pos" for i in range(7)]
+OPENPI_DROID_GRIPPER_POSITION_NAMES = ["gripper.position"]
+OPENPI_DROID_ACTION_NAMES = [f"joint_{i}.vel" for i in range(7)] + ["target.gripper.position"]
 
 
 def read_jsonl(path: Path) -> list[dict]:
@@ -56,6 +60,20 @@ def episode_dirs(raw_dir: Path, include_failed: bool) -> list[Path]:
 
 def camera_files(ep_dir: Path) -> list[Path]:
     return sorted(ep_dir.glob("camera_*_rgb.mp4"))
+
+
+def select_camera_files(ep_dir: Path, camera_indices: list[int] | None) -> list[Path]:
+    paths = camera_files(ep_dir)
+    if camera_indices is None:
+        return paths
+    if not paths:
+        return []
+    selected = []
+    for index in camera_indices:
+        if index < 0 or index >= len(paths):
+            raise RuntimeError(f"{ep_dir} has {len(paths)} cameras; index {index} is out of range")
+        selected.append(paths[index])
+    return selected
 
 
 def camera_key(video_path: Path) -> str:
@@ -112,6 +130,12 @@ def gripper_closedness(sample: dict, gripper_max_width: float) -> float:
     return float(np.clip(1.0 - width / gripper_max_width, 0.0, 1.0))
 
 
+def gripper_position(sample: dict, gripper_max_width: float, *, command: bool = False) -> float:
+    key = "gripper_command_width" if command and "gripper_command_width" in sample else "gripper_width"
+    width = float(sample.get(key, gripper_max_width))
+    return float(np.clip(width / gripper_max_width, 0.0, 1.0))
+
+
 def fr3_full_state_vector(sample: dict) -> np.ndarray:
     return np.asarray(
         sample["q"]
@@ -150,6 +174,29 @@ def droid_delta_action_vector(current: dict, next_sample: dict, gripper_max_widt
     )
 
 
+def openpi_droid_joint_position(sample: dict) -> np.ndarray:
+    return np.asarray(sample["q"], dtype=np.float32)
+
+
+def openpi_droid_gripper_position(sample: dict, gripper_max_width: float) -> np.ndarray:
+    return np.asarray([gripper_position(sample, gripper_max_width)], dtype=np.float32)
+
+
+def openpi_droid_joint_velocity_action(
+    sample: dict,
+    gripper_max_width: float,
+    joint_velocity_key: str,
+) -> np.ndarray:
+    if joint_velocity_key not in sample:
+        raise KeyError(f"Missing joint velocity key {joint_velocity_key!r} in robot_state sample")
+    joint_velocity = np.asarray(sample[joint_velocity_key], dtype=np.float32)
+    if joint_velocity.shape != (7,):
+        raise ValueError(f"Expected {joint_velocity_key} to have shape (7,), got {joint_velocity.shape}")
+    return np.concatenate(
+        [joint_velocity, np.asarray([gripper_position(sample, gripper_max_width, command=True)], dtype=np.float32)]
+    ).astype(np.float32)
+
+
 def nearest_indices(sorted_times: np.ndarray, query_times: np.ndarray) -> np.ndarray:
     idx = np.searchsorted(sorted_times, query_times)
     idx = np.clip(idx, 1, len(sorted_times) - 1)
@@ -165,17 +212,57 @@ def read_video_frame(cap: cv2.VideoCapture) -> np.ndarray | None:
     return cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
 
 
-def build_features(first_ep: Path, fps: int, schema: str) -> tuple[dict, list[str]]:
-    video_paths = camera_files(first_ep)
+def build_features(first_ep: Path, fps: int, schema: str, camera_indices: list[int] | None) -> tuple[dict, list[str]]:
+    video_paths = select_camera_files(first_ep, camera_indices)
     if not video_paths:
         raise RuntimeError(f"No camera videos found in {first_ep}")
 
     if schema == "droid_delta":
         state_names = DROID_STATE_NAMES
         action_names = DROID_ACTION_NAMES
-    else:
+    elif schema == "fr3_full":
         state_names = FR3_FULL_STATE_NAMES
         action_names = FR3_FULL_ACTION_NAMES
+    elif schema == "openpi_droid_joint_velocity":
+        if len(video_paths) != len(OPENPI_DROID_CAMERA_KEYS):
+            raise RuntimeError(
+                f"OpenPI DROID schema expects {len(OPENPI_DROID_CAMERA_KEYS)} cameras, got {len(video_paths)}"
+            )
+        features = {
+            "joint_position": {
+                "dtype": "float32",
+                "shape": (7,),
+                "names": OPENPI_DROID_JOINT_POSITION_NAMES,
+            },
+            "gripper_position": {
+                "dtype": "float32",
+                "shape": (1,),
+                "names": OPENPI_DROID_GRIPPER_POSITION_NAMES,
+            },
+            "actions": {
+                "dtype": "float32",
+                "shape": (8,),
+                "names": OPENPI_DROID_ACTION_NAMES,
+            },
+        }
+        camera_keys = []
+        for video_path, key in zip(video_paths, OPENPI_DROID_CAMERA_KEYS, strict=True):
+            cap = cv2.VideoCapture(str(video_path))
+            ok, frame = cap.read()
+            cap.release()
+            if not ok:
+                raise RuntimeError(f"Could not read first frame from {video_path}")
+            height, width = frame.shape[:2]
+            camera_keys.append(key)
+            features[key] = {
+                "dtype": "video",
+                "shape": (height, width, 3),
+                "names": ["height", "width", "channel"],
+                "info": {"fps": fps},
+            }
+        return features, camera_keys
+    else:
+        raise ValueError(f"Unknown schema: {schema}")
 
     features = {
         "observation.state": {
@@ -216,13 +303,16 @@ def convert_episode(
     max_frames: int | None,
     schema: str,
     gripper_max_width: float,
+    camera_indices: list[int] | None,
+    sample_stride: int,
+    joint_velocity_key: str,
 ) -> int:
     states = read_jsonl(ep_dir / "robot_state.jsonl")
     if len(states) < 2:
         raise RuntimeError(f"{ep_dir} has too few robot_state samples")
     state_times = np.asarray([row["time_ns"] for row in states], dtype=np.int64)
 
-    video_paths = camera_files(ep_dir)
+    video_paths = select_camera_files(ep_dir, camera_indices)
     if len(video_paths) != len(camera_keys):
         raise RuntimeError(f"{ep_dir} camera count changed: expected {len(camera_keys)}, got {len(video_paths)}")
 
@@ -244,32 +334,54 @@ def convert_episode(
     state_indices = nearest_indices(state_times, ref_times)
 
     caps = [cv2.VideoCapture(str(path)) for path in video_paths]
+    added_frames = 0
     try:
         for frame_idx in range(frame_count):
             images = [read_video_frame(cap) for cap in caps]
             if any(image is None for image in images):
                 break
+            if frame_idx % sample_stride != 0:
+                continue
             state_idx = int(state_indices[frame_idx])
             action_idx = min(state_idx + 1, len(states) - 1)
             if schema == "droid_delta":
                 state = droid_state_vector(states[state_idx], gripper_max_width)
                 action = droid_delta_action_vector(states[state_idx], states[action_idx], gripper_max_width)
-            else:
+                frame = {
+                    "task": task,
+                    "observation.state": state,
+                    "action": action,
+                }
+            elif schema == "fr3_full":
                 state = fr3_full_state_vector(states[state_idx])
                 action = fr3_full_action_vector(states[action_idx])
-            frame = {
-                "task": task,
-                "observation.state": state,
-                "action": action,
-            }
+                frame = {
+                    "task": task,
+                    "observation.state": state,
+                    "action": action,
+                }
+            elif schema == "openpi_droid_joint_velocity":
+                frame = {
+                    "task": task,
+                    "joint_position": openpi_droid_joint_position(states[state_idx]),
+                    "gripper_position": openpi_droid_gripper_position(states[state_idx], gripper_max_width),
+                    "actions": openpi_droid_joint_velocity_action(
+                        states[state_idx],
+                        gripper_max_width,
+                        joint_velocity_key,
+                    ),
+                }
+            else:
+                raise ValueError(f"Unknown schema: {schema}")
             for key, image in zip(camera_keys, images, strict=True):
                 frame[key] = image
             dataset.add_frame(frame)
+            added_frames += 1
     finally:
         for cap in caps:
             cap.release()
     dataset.save_episode()
-    return frame_count
+    return added_frames
 
 
 def main() -> None:
@@ -281,20 +393,33 @@ def main() -> None:
     parser.add_argument("--fps", type=int, default=30)
     parser.add_argument("--include_failed", action="store_true")
     parser.add_argument("--max_frames_per_episode", type=int, default=None)
-    parser.add_argument("--schema", choices=["droid_delta", "fr3_full"], default="droid_delta",
-                        help="droid_delta uses 8D proprio state and 7D relative EE delta action.")
+    parser.add_argument("--schema", choices=["droid_delta", "fr3_full", "openpi_droid_joint_velocity"], default="droid_delta",
+                        help="openpi_droid_joint_velocity emits DROID keys with 7D joint velocity + gripper actions.")
     parser.add_argument("--gripper_max_width", type=float, default=0.08,
                         help="Meters, used to normalize gripper closedness for DROID-style schema.")
+    parser.add_argument("--camera_indices", type=int, nargs="+", default=None,
+                        help="Camera indices after sorting camera_*_rgb.mp4. OpenPI schema defaults to 0 1.")
+    parser.add_argument("--sample_stride", type=int, default=1,
+                        help="Keep every Nth video frame. Use 4 for 60 FPS raw recordings converted to 15 FPS.")
+    parser.add_argument("--joint_velocity_key", choices=["dq_d", "dq"], default="dq_d",
+                        help="Robot state field to use as 7D joint velocity action for the OpenPI DROID schema.")
     parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args()
+    if args.sample_stride < 1:
+        raise SystemExit("--sample_stride must be >= 1")
+    if args.schema == "openpi_droid_joint_velocity" and args.camera_indices is None:
+        args.camera_indices = [0, 1]
 
     try:
-        from lerobot.datasets.lerobot_dataset import LeRobotDataset
+        from lerobot.common.datasets.lerobot_dataset import LeRobotDataset
     except ImportError as exc:
-        raise SystemExit(
-            "Could not import modern LeRobot. Install/run this in a LeRobot >=0.4 environment, "
-            "then retry the converter."
-        ) from exc
+        try:
+            from lerobot.datasets.lerobot_dataset import LeRobotDataset
+        except ImportError:
+            raise SystemExit(
+                "Could not import modern LeRobot. Install/run this in a LeRobot >=0.4 environment, "
+                "then retry the converter."
+            ) from exc
 
     episodes = episode_dirs(args.raw_dir, args.include_failed)
     if not episodes:
@@ -304,7 +429,7 @@ def main() -> None:
             raise SystemExit(f"{args.output_dir} exists. Pass --overwrite to replace it.")
         shutil.rmtree(args.output_dir)
 
-    features, camera_keys = build_features(episodes[0], args.fps, args.schema)
+    features, camera_keys = build_features(episodes[0], args.fps, args.schema, args.camera_indices)
     dataset = LeRobotDataset.create(
         repo_id=args.repo_id,
         root=args.output_dir,
@@ -325,6 +450,9 @@ def main() -> None:
             args.max_frames_per_episode,
             args.schema,
             args.gripper_max_width,
+            args.camera_indices,
+            args.sample_stride,
+            args.joint_velocity_key,
         )
         print(f"          saved {n_frames} frames")
         converted += 1

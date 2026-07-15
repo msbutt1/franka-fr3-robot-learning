@@ -2,8 +2,8 @@
 """Free-drive probe tool for the real FR3 — records labeled base-frame coordinates to files.
 
 Usage (on the machine connected to the robot, with `pip install franky-control`):
-    python probe_points.py --robot_ip 172.16.0.2
-    python probe_points.py --robot_ip 172.16.0.2 --out_dir ./calibration
+    python fr3_real/robot/probe_points.py --robot_ip 172.16.0.2
+    python fr3_real/robot/probe_points.py --robot_ip 172.16.0.2 --out_dir ./calibration
 
 Workflow per point:
   1. Put the arm in guide mode (grip the wrist buttons / enable hand-guiding in Desk).
@@ -17,12 +17,18 @@ Every point is appended immediately (crash-safe) to:
 """
 import argparse
 import json
+import sys
 import time
 from pathlib import Path
 
+if __package__ is None or __package__ == "":
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from fr3_real.paths import DEFAULT_PROBE_OUTPUT_DIR
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--robot_ip", type=str, default="172.16.0.2")
-parser.add_argument("--out_dir", type=str, default=".")
+parser.add_argument("--out_dir", type=str, default=str(DEFAULT_PROBE_OUTPUT_DIR))
 args = parser.parse_args()
 
 from franky import Robot  # noqa: E402  (import after argparse so --help works without franky)
