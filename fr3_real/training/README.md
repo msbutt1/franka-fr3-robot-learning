@@ -39,35 +39,89 @@ Defaults follow the existing project convention:
 /home/lihuyue/scratch/anastasia_fr3/openpi
 /home/lihuyue/scratch/anastasia_fr3/lerobot_cache
 /home/lihuyue/scratch/anastasia_fr3/openpi_cache
+/home/lihuyue/scratch/anastasia_fr3/franka-fr3-robot-learning/fr3_raw_recordings
 ```
 
-The scripts infer this repository from the script path. Override paths if your
-server layout differs:
+The single environment entry point is `scratch_env.sh`. Source it from any
+working directory:
 
 ```bash
-export FR3="/home/lihuyue/scratch/anastasia_fr3"
-export OPENPI_DIR="${FR3}/openpi"
-export LEROBOT_CACHE="${FR3}/lerobot_cache"
-export RAW_DIR="/path/to/fr3_raw_recordings"
+cd /home/lihuyue/scratch/anastasia_fr3/franka-fr3-robot-learning
 source fr3_real/training/scratch_env.sh
 ```
 
-Source `scratch_env.sh` before OpenPI install, conversion, and training. It
-keeps `uv`, `pip`, Hugging Face, OpenPI checkpoint, W&B, Torch, Matplotlib, and
-temporary-file caches under `${FR3}` instead of `${HOME}`.
+It exports `FR3`, `REPO_DIR`, `OPENPI_DIR`, `RAW_DIR`, dataset paths, and all
+cache paths. `uv`, pip, Hugging Face, OpenPI, W&B, Torch, JAX, CUDA, Triton,
+Matplotlib, Google Cloud, Python bytecode, and temporary files remain under
+`${FR3}` instead of `${HOME}`. Set an environment variable before sourcing the
+script only when an override is needed.
+
+## First-Time OpenPI Installation
+
+`uv` is already installed on FIR. Install OpenPI and all locked dependencies
+into the OpenPI checkout on scratch:
+
+```bash
+cd /home/lihuyue/scratch/anastasia_fr3/franka-fr3-robot-learning
+source fr3_real/training/scratch_env.sh
+
+command -v uv
+uv --version
+
+if [ ! -d "${OPENPI_DIR}/.git" ]; then
+  GIT_LFS_SKIP_SMUDGE=1 git clone --recurse-submodules \
+    https://github.com/Physical-Intelligence/openpi.git "${OPENPI_DIR}"
+fi
+
+cd "${OPENPI_DIR}"
+git submodule update --init --recursive
+GIT_LFS_SKIP_SMUDGE=1 uv sync
+GIT_LFS_SKIP_SMUDGE=1 uv pip install -e .
+
+source .venv/bin/activate
+python -c "import jax, torch, lerobot, openpi; print('OpenPI environment OK')"
+```
+
+Do not use the RLDS dependency group for this workflow. The local FR3 data is
+converted to LeRobot rather than loading the full DROID RLDS dataset.
 
 ## Run
+
+Always submit from the scratch project root. The jobs source the environment
+script themselves, so no exported login-shell variables are required.
 
 Convert raw recordings to LeRobot:
 
 ```bash
-sbatch fr3_real/training/convert_fr3_real_droid_joint_velocity.sbatch
+cd /home/lihuyue/scratch/anastasia_fr3/franka-fr3-robot-learning
+source fr3_real/training/scratch_env.sh
+
+CONVERT_JOB_ID=$(sbatch --parsable \
+  --output="${LOG_DIR}/%x_%j.out" \
+  --error="${LOG_DIR}/%x_%j.err" \
+  fr3_real/training/convert_fr3_real_droid_joint_velocity.sbatch)
+echo "Conversion job: ${CONVERT_JOB_ID}"
 ```
 
-Launch the full fine-tune:
+Submit training after successful conversion. This uses a Slurm dependency, so
+it is safe to run immediately after the preceding command:
 
 ```bash
-sbatch fr3_real/training/train_pi05_fr3_real_droid_full.sbatch
+TRAIN_JOB_ID=$(sbatch --parsable \
+  --dependency="afterok:${CONVERT_JOB_ID}" \
+  --output="${LOG_DIR}/%x_%j.out" \
+  --error="${LOG_DIR}/%x_%j.err" \
+  fr3_real/training/train_pi05_fr3_real_droid_full.sbatch)
+echo "Training job: ${TRAIN_JOB_ID}"
+```
+
+If conversion already completed successfully, submit training directly:
+
+```bash
+TRAIN_JOB_ID=$(sbatch --parsable \
+  --output="${LOG_DIR}/%x_%j.out" \
+  --error="${LOG_DIR}/%x_%j.err" \
+  fr3_real/training/train_pi05_fr3_real_droid_full.sbatch)
 ```
 
 The training job patches `${OPENPI_DIR}/src/openpi/training/config.py`
@@ -114,7 +168,8 @@ gsutil -m cp -r gs://openpi-assets/checkpoints/pi05_droid "${FR3}/openpi_assets/
 CHECKPOINT="${FR3}/openpi_assets/checkpoints/pi05_droid/params" \
 ASSETS_DIR="${FR3}/openpi_assets/checkpoints/pi05_droid/assets" \
 ASSET_ID=droid \
-sbatch fr3_real/training/train_pi05_fr3_real_droid_full.sbatch
+sbatch --output="${LOG_DIR}/%x_%j.out" --error="${LOG_DIR}/%x_%j.err" \
+  fr3_real/training/train_pi05_fr3_real_droid_full.sbatch
 ```
 
 To run the Slurm training job from the general pi0.5 base checkpoint instead:

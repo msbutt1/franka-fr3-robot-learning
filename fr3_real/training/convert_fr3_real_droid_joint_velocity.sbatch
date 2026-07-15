@@ -13,13 +13,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-REPO_DIR="${REPO_DIR:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
-FR3="${FR3:-${HOME}/projects/def-mqp2259/franka_r3}"
-OPENPI_DIR="${OPENPI_DIR:-${FR3}/openpi}"
-LEROBOT_CACHE="${LEROBOT_CACHE:-${FR3}/lerobot_cache}"
-DATASET_REPO_ID="${DATASET_REPO_ID:-local/fr3_real_pick_place_droid}"
-DATASET_DIR="${DATASET_DIR:-${LEROBOT_CACHE}/${DATASET_REPO_ID}}"
-RAW_DIR="${RAW_DIR:-${REPO_DIR}/fr3_raw_recordings}"
+source "${SCRIPT_DIR}/scratch_env.sh"
 TASK="${TASK:-Pick up the cube from the cell and place it in the basket.}"
 FPS="${FPS:-15}"
 SAMPLE_STRIDE="${SAMPLE_STRIDE:-4}"
@@ -27,7 +21,6 @@ GRIPPER_MAX_WIDTH="${GRIPPER_MAX_WIDTH:-0.08}"
 JOINT_VELOCITY_KEY="${JOINT_VELOCITY_KEY:-dq_d}"
 OVERWRITE_FLAG="${OVERWRITE_FLAG:---overwrite}"
 
-source "${SCRIPT_DIR}/scratch_env.sh"
 export HF_LEROBOT_HOME="${LEROBOT_CACHE}"
 
 echo "Repo:        ${REPO_DIR}"

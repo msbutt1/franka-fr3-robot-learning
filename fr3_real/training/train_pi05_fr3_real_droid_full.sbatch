@@ -14,12 +14,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-REPO_DIR="${REPO_DIR:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
-FR3="${FR3:-${HOME}/projects/def-mqp2259/franka_r3}"
-OPENPI_DIR="${OPENPI_DIR:-${FR3}/openpi}"
-LEROBOT_CACHE="${LEROBOT_CACHE:-${FR3}/lerobot_cache}"
-DATASET_REPO_ID="${DATASET_REPO_ID:-local/fr3_real_pick_place_droid}"
-DATASET="${DATASET:-${LEROBOT_CACHE}/${DATASET_REPO_ID}}"
+source "${SCRIPT_DIR}/scratch_env.sh"
 CONFIG="${CONFIG:-pi05_fr3_real_droid_full}"
 EXP_NAME="${EXP_NAME:-fr3_real_droid_full_v1}"
 BATCH_SIZE="${BATCH_SIZE:-32}"
@@ -31,7 +26,6 @@ CHECKPOINT="${CHECKPOINT:-gs://openpi-assets/checkpoints/pi05_droid/params}"
 ASSETS_DIR="${ASSETS_DIR:-gs://openpi-assets/checkpoints/pi05_droid/assets}"
 ASSET_ID="${ASSET_ID:-droid}"
 
-source "${SCRIPT_DIR}/scratch_env.sh"
 export HF_LEROBOT_HOME="${LEROBOT_CACHE}"
 
 if [ "${BATCH_SIZE}" -gt 32 ]; then
