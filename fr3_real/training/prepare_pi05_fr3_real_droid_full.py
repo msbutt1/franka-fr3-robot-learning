@@ -167,9 +167,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--num-workers", type=int, default=int(os.environ.get("FR3_NUM_WORKERS", "0")))
     parser.add_argument("--save-interval", type=int, default=int(os.environ.get("FR3_SAVE_INTERVAL", "1000")))
     parser.add_argument("--keep-period", type=int, default=int(os.environ.get("FR3_KEEP_PERIOD", "5000")))
-    parser.add_argument("--assets-dir", default="gs://openpi-assets/checkpoints/pi05_droid/assets")
-    parser.add_argument("--asset-id", default="droid")
-    parser.add_argument("--checkpoint", default="gs://openpi-assets/checkpoints/pi05_droid/params")
+    parser.add_argument(
+        "--assets-dir",
+        default=os.environ.get("FR3_ASSETS_DIR", "gs://openpi-assets/checkpoints/pi05_droid/assets"),
+    )
+    parser.add_argument("--asset-id", default=os.environ.get("FR3_ASSET_ID", "droid"))
+    parser.add_argument(
+        "--checkpoint",
+        default=os.environ.get("FR3_CHECKPOINT", "gs://openpi-assets/checkpoints/pi05_droid/params"),
+    )
     parser.add_argument("--dry-run", action="store_true")
     return parser.parse_args()
 

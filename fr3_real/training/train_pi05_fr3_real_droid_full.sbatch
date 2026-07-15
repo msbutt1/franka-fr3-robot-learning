@@ -27,6 +27,9 @@ NUM_TRAIN_STEPS="${NUM_TRAIN_STEPS:-20000}"
 NUM_WORKERS="${NUM_WORKERS:-0}"
 SAVE_INTERVAL="${SAVE_INTERVAL:-1000}"
 KEEP_PERIOD="${KEEP_PERIOD:-5000}"
+CHECKPOINT="${CHECKPOINT:-gs://openpi-assets/checkpoints/pi05_droid/params}"
+ASSETS_DIR="${ASSETS_DIR:-gs://openpi-assets/checkpoints/pi05_droid/assets}"
+ASSET_ID="${ASSET_ID:-droid}"
 
 if [ "${BATCH_SIZE}" -gt 32 ]; then
     echo "Refusing BATCH_SIZE=${BATCH_SIZE}; requested maximum is 32." >&2
@@ -45,6 +48,8 @@ echo "Config:      ${CONFIG}"
 echo "Run:         ${EXP_NAME}"
 echo "Batch size:  ${BATCH_SIZE}"
 echo "Steps:       ${NUM_TRAIN_STEPS}"
+echo "Checkpoint:  ${CHECKPOINT}"
+echo "Assets:      ${ASSETS_DIR} (${ASSET_ID})"
 
 if [ ! -d "${OPENPI_DIR}" ]; then
     echo "Missing OpenPI checkout: ${OPENPI_DIR}" >&2
@@ -68,7 +73,10 @@ python "${REPO_DIR}/fr3_real/training/prepare_pi05_fr3_real_droid_full.py" \
     --batch-size "${BATCH_SIZE}" \
     --num-workers "${NUM_WORKERS}" \
     --save-interval "${SAVE_INTERVAL}" \
-    --keep-period "${KEEP_PERIOD}"
+    --keep-period "${KEEP_PERIOD}" \
+    --checkpoint "${CHECKPOINT}" \
+    --assets-dir "${ASSETS_DIR}" \
+    --asset-id "${ASSET_ID}"
 
 python -c "import ast; ast.parse(open('src/openpi/training/config.py').read()); print('config.py parses OK')"
 python "${REPO_DIR}/fr3_real/training/inspect_pi05_fr3_lerobot_dataset.py" "${DATASET}" --expected-fps 15
