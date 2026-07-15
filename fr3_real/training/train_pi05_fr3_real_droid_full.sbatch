@@ -4,7 +4,9 @@
 
 #SBATCH --job-name=pi05_fr3_real_full
 #SBATCH --account=def-mqp2259
-#SBATCH --gpus=h100:1
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --gres=gpu:h100:1
 #SBATCH --cpus-per-task=12
 #SBATCH --mem=96G
 #SBATCH --time=24:00:00

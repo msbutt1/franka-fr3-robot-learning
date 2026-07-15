@@ -456,7 +456,12 @@ def main() -> None:
         )
         print(f"          saved {n_frames} frames")
         converted += 1
-    dataset.finalize()
+    # LeRobot releases that expose finalize() require an explicit final flush.
+    # Newer releases finalize metadata and video files in save_episode() and no
+    # longer provide this method.
+    finalize = getattr(dataset, "finalize", None)
+    if callable(finalize):
+        finalize()
     print(f"[done] converted {converted} episodes to {args.output_dir}")
 
 
