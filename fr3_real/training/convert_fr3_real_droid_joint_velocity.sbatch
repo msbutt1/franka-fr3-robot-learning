@@ -12,8 +12,8 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/scratch_env.sh"
+REPO_DIR="${REPO_DIR:-${SLURM_SUBMIT_DIR:-$PWD}}"
+source "${REPO_DIR}/fr3_real/training/scratch_env.sh"
 TASK="${TASK:-Pick up the cube from the cell and place it in the basket.}"
 FPS="${FPS:-15}"
 SAMPLE_STRIDE="${SAMPLE_STRIDE:-4}"

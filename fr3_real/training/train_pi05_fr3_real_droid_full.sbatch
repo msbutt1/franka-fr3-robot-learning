@@ -13,8 +13,8 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/scratch_env.sh"
+REPO_DIR="${REPO_DIR:-${SLURM_SUBMIT_DIR:-$PWD}}"
+source "${REPO_DIR}/fr3_real/training/scratch_env.sh"
 CONFIG="${CONFIG:-pi05_fr3_real_droid_full}"
 EXP_NAME="${EXP_NAME:-fr3_real_droid_full_v1}"
 BATCH_SIZE="${BATCH_SIZE:-32}"
