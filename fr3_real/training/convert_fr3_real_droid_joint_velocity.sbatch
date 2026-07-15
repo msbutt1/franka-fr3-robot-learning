@@ -27,6 +27,7 @@ GRIPPER_MAX_WIDTH="${GRIPPER_MAX_WIDTH:-0.08}"
 JOINT_VELOCITY_KEY="${JOINT_VELOCITY_KEY:-dq_d}"
 OVERWRITE_FLAG="${OVERWRITE_FLAG:---overwrite}"
 
+source "${SCRIPT_DIR}/scratch_env.sh"
 export HF_LEROBOT_HOME="${LEROBOT_CACHE}"
 
 echo "Repo:        ${REPO_DIR}"
@@ -37,6 +38,9 @@ echo "Dataset dir: ${DATASET_DIR}"
 echo "FPS:         ${FPS}"
 echo "Stride:      ${SAMPLE_STRIDE}"
 echo "Velocity:    ${JOINT_VELOCITY_KEY}"
+echo "UV cache:    ${UV_CACHE_DIR}"
+echo "Temp dir:    ${TMPDIR}"
+echo "OpenPI cache:${OPENPI_DATA_HOME}"
 
 if [ ! -d "${RAW_DIR}" ]; then
     echo "Missing raw recordings: ${RAW_DIR}" >&2

@@ -36,19 +36,25 @@ The converter writes the two DROID inputs used by pi0.5-DROID:
 Defaults follow the existing project convention:
 
 ```bash
-${HOME}/projects/def-mqp2259/franka_r3/openpi
-${HOME}/projects/def-mqp2259/franka_r3/lerobot_cache
+/home/lihuyue/scratch/anastasia_fr3/openpi
+/home/lihuyue/scratch/anastasia_fr3/lerobot_cache
+/home/lihuyue/scratch/anastasia_fr3/openpi_cache
 ```
 
 The scripts infer this repository from the script path. Override paths if your
 server layout differs:
 
 ```bash
-export FR3="${HOME}/projects/def-mqp2259/franka_r3"
+export FR3="/home/lihuyue/scratch/anastasia_fr3"
 export OPENPI_DIR="${FR3}/openpi"
 export LEROBOT_CACHE="${FR3}/lerobot_cache"
 export RAW_DIR="/path/to/fr3_raw_recordings"
+source fr3_real/training/scratch_env.sh
 ```
+
+Source `scratch_env.sh` before OpenPI install, conversion, and training. It
+keeps `uv`, `pip`, Hugging Face, OpenPI checkpoint, W&B, Torch, Matplotlib, and
+temporary-file caches under `${FR3}` instead of `${HOME}`.
 
 ## Run
 

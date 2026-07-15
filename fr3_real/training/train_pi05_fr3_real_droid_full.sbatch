@@ -31,12 +31,14 @@ CHECKPOINT="${CHECKPOINT:-gs://openpi-assets/checkpoints/pi05_droid/params}"
 ASSETS_DIR="${ASSETS_DIR:-gs://openpi-assets/checkpoints/pi05_droid/assets}"
 ASSET_ID="${ASSET_ID:-droid}"
 
+source "${SCRIPT_DIR}/scratch_env.sh"
+export HF_LEROBOT_HOME="${LEROBOT_CACHE}"
+
 if [ "${BATCH_SIZE}" -gt 32 ]; then
     echo "Refusing BATCH_SIZE=${BATCH_SIZE}; requested maximum is 32." >&2
     exit 2
 fi
 
-export HF_LEROBOT_HOME="${LEROBOT_CACHE}"
 export XLA_PYTHON_CLIENT_MEM_FRACTION="${XLA_PYTHON_CLIENT_MEM_FRACTION:-0.92}"
 export WANDB_MODE="${WANDB_MODE:-offline}"
 
@@ -50,6 +52,9 @@ echo "Batch size:  ${BATCH_SIZE}"
 echo "Steps:       ${NUM_TRAIN_STEPS}"
 echo "Checkpoint:  ${CHECKPOINT}"
 echo "Assets:      ${ASSETS_DIR} (${ASSET_ID})"
+echo "UV cache:    ${UV_CACHE_DIR}"
+echo "Temp dir:    ${TMPDIR}"
+echo "OpenPI cache:${OPENPI_DATA_HOME}"
 
 if [ ! -d "${OPENPI_DIR}" ]; then
     echo "Missing OpenPI checkout: ${OPENPI_DIR}" >&2
