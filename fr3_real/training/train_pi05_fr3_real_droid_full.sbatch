@@ -88,5 +88,8 @@ if [ -d "${CKPT_DIR}" ] && [ -n "$(ls -A "${CKPT_DIR}" 2>/dev/null)" ]; then
     echo "Resuming from ${CKPT_DIR}"
 fi
 
-uv run scripts/train.py "${CONFIG}" --exp-name="${EXP_NAME}" "${RESUME_FLAG[@]}" \
+# The FIR system headers cannot compile evdev 1.9.2. The headless training
+# environment is installed with --no-install-package evdev, so do not let
+# `uv run` perform another automatic sync here.
+uv run --no-sync scripts/train.py "${CONFIG}" --exp-name="${EXP_NAME}" "${RESUME_FLAG[@]}" \
     2>&1 | tee "${FR3}/${EXP_NAME}.log"

@@ -75,8 +75,7 @@ fi
 
 cd "${OPENPI_DIR}"
 git submodule update --init --recursive
-GIT_LFS_SKIP_SMUDGE=1 uv sync
-GIT_LFS_SKIP_SMUDGE=1 uv pip install -e .
+GIT_LFS_SKIP_SMUDGE=1 uv sync --no-install-package evdev
 
 source .venv/bin/activate
 python -c "import jax, torch, lerobot, openpi; print('OpenPI environment OK')"
@@ -84,6 +83,13 @@ python -c "import jax, torch, lerobot, openpi; print('OpenPI environment OK')"
 
 Do not use the RLDS dependency group for this workflow. The local FR3 data is
 converted to LeRobot rather than loading the full DROID RLDS dataset.
+
+`evdev` is deliberately omitted on FIR. Version 1.9.2 fails to compile against
+FIR's older Linux input-event headers, and it is only a transitive dependency
+of LeRobot's keyboard/input-device support. Dataset conversion and headless
+Slurm training do not use it. `uv sync` already installs the local `openpi` and
+`openpi-client` projects, so a second `uv pip install -e .` is unnecessary. The
+training job uses `uv run --no-sync` to preserve this partial installation.
 
 ## Run
 
