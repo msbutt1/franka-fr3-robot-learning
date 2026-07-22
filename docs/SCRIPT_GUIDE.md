@@ -74,8 +74,9 @@ streamer there once with CMake, then use `--help` on each Python launcher.
 | `data-pipeline/filter_*` | Export working cells from tracker status. | `python data-pipeline/<script>.py --help` |
 | `data-pipeline/build_fr3_phase_sampling_manifest.py` | Create phase-aware training sample indices. | `python data-pipeline/build_fr3_phase_sampling_manifest.py --help` |
 | `data-pipeline/compute_fr3_custom_norm_stats.py` | Compute OpenPI normalization statistics. | `python data-pipeline/compute_fr3_custom_norm_stats.py --help` |
-| `training/*.py` | Prepare OpenPI configs and launch training helpers. | `python training/<script>.py --help` |
-| `training/*_slurm.sh` | Submit Nibi conversion, validation, or training jobs. | `sbatch training/<script>_slurm.sh` |
+| `training/prepare_fr3_v3_dataset_nibi_slurm.sh` | Audit, stage, and convert the v3 data set on Nibi. | `sbatch training/prepare_fr3_v3_dataset_nibi_slurm.sh` |
+| `training/train_fr3_v3_droid_full_nibi_slurm.sh` | Train or resume the retained full pi0.5-DROID v3 run. | `sbatch training/train_fr3_v3_droid_full_nibi_slurm.sh` |
+| `training/validate_fr3_pi05_batch_slurm.sh` | Validate the converted v3 dataset and an OpenPI batch. | `sbatch training/validate_fr3_pi05_batch_slurm.sh` |
 
 Training helpers require an OpenPI checkout and are designed to operate on the
 OpenPI environment, not the robot-control Conda environment.

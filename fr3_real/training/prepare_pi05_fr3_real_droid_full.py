@@ -4,8 +4,8 @@
 
 Run once from the OpenPI repository root on Nibi. The generated config keeps
 the pi05-DROID checkpoint, action representation, and normalization assets,
-but points at the physical FR3 LeRobot dataset and uses a shorter low-LR run
-for the 118-episode dataset.
+but points at the physical FR3 v3 LeRobot dataset and uses a shorter low-LR
+run suitable for the collected real-robot demonstrations.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from pathlib import Path
 CONFIG_PATH = Path("src/openpi/training/config.py")
 BASE_NAME = "pi05_droid_finetune"
 NEW_NAME = "pi05_fr3_real_droid_full"
-REPO_ID = "local/fr3_real_pick_place_droid"
+REPO_ID = "local/fr3_real_pick_place_droid_v3"
 
 
 def extract_train_config(text: str, config_name: str) -> tuple[int, int, str]:

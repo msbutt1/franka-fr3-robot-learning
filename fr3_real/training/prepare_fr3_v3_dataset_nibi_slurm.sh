@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Usage: from fr3_real/, run: sbatch training/prepare_fr3_v2_dataset_nibi_slurm.sh
-# Build the merged v2 LeRobot dataset on Nibi local disk and publish atomically.
+# Usage: from fr3_real/, run: sbatch training/prepare_fr3_v3_dataset_nibi_slurm.sh
+# Build the merged v3 LeRobot dataset on Nibi local disk and publish atomically.
 
-#SBATCH --job-name=prepare_fr3_v2
+#SBATCH --job-name=prepare_fr3_v3
 #SBATCH --account=def-mqp2259
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=64G
@@ -16,13 +16,13 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # Slurm may execute a staged copy from /var/spool; submit-dir is the project root.
 FR3="${FR3:-${SLURM_SUBMIT_DIR:-${SCRIPT_DIR}}}"
 NEW_RAW_DIR="${NEW_RAW_DIR:?Submit with --export=ALL,NEW_RAW_DIR=/path/to/new/raw/demos}"
-REPO_ID="${REPO_ID:-local/fr3_real_pick_place_droid_v2}"
+REPO_ID="${REPO_ID:-local/fr3_real_pick_place_droid_v3}"
 DATASET_NAME="${REPO_ID##*/}"
 PROJECT_CACHE="${FR3}/lerobot_cache"
 TMP_CACHE="${SLURM_TMPDIR:?}/lerobot_cache"
 PUBLISHED_DATASET="${PROJECT_CACHE}/${REPO_ID}"
 INCOMING_DATASET="${PROJECT_CACHE}/local/.${DATASET_NAME}.incoming.${SLURM_JOB_ID}"
-NORM_STATS_DIR="${NORM_STATS_DIR:-${FR3}/fr3_custom_assets_${DATASET_NAME}/droid}"
+NORM_STATS_DIR="${NORM_STATS_DIR:-${FR3}/fr3_custom_assets_v3/droid}"
 
 if [[ -e "${PUBLISHED_DATASET}" ]]; then
   echo "Refusing to replace published dataset: ${PUBLISHED_DATASET}" >&2
@@ -47,7 +47,7 @@ FR3="${FR3}" \
 NEW_RAW_DIR="${NEW_RAW_DIR}" \
 HF_LEROBOT_HOME="${TMP_CACHE}" \
 NORM_STATS_DIR="${NORM_STATS_DIR}" \
-  "${SCRIPT_DIR}/prepare_fr3_v2_dataset.sh"
+  "${SCRIPT_DIR}/prepare_fr3_v3_dataset.sh"
 
 test -d "${TMP_CACHE}/${REPO_ID}" || {
   echo "Prepared dataset is missing: ${TMP_CACHE}/${REPO_ID}" >&2

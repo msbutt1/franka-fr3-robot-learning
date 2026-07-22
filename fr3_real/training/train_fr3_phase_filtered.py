@@ -33,7 +33,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--openpi-root", type=Path, required=True)
     parser.add_argument("--config", default="pi05_fr3_real_droid_full")
-    parser.add_argument("--dataset-repo", default="local/fr3_real_pick_place_droid_v2")
+    parser.add_argument("--dataset-repo", default="local/fr3_real_pick_place_droid_v3")
     parser.add_argument("--exp-name", required=True)
     parser.add_argument(
         "--checkpoint-base-dir",

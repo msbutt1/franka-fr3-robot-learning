@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Usage: from fr3_real/, run: sbatch training/validate_fr3_pi05_batch_slurm.sh
-# Validate converted LeRobot records and one OpenPI-transformed training batch.
+# Validate the v3 LeRobot records and one OpenPI-transformed training batch.
 
-#SBATCH --job-name=validate_fr3_pi05
+#SBATCH --job-name=validate_fr3_v3_pi05
 #SBATCH --account=def-mqp2259
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=32G
@@ -18,7 +18,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 FR3="${FR3:-${SLURM_SUBMIT_DIR:-${SCRIPT_DIR}}}"
 OPENPI_DIR="${FR3}/openpi"
 LEROBOT_CACHE="${FR3}/lerobot_cache"
-DATASET="${LEROBOT_CACHE}/local/fr3_real_pick_place_droid"
+DATASET="${LEROBOT_CACHE}/local/fr3_real_pick_place_droid_v3"
 
 export HF_LEROBOT_HOME="${LEROBOT_CACHE}"
 export UV_CACHE_DIR="${FR3}/uv_cache"

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Usage: from fr3_real/, run: sbatch training/train_fr3_v2_full_nibi_slurm.sh
-# Train one fresh merged-data full fine-tune on a Nibi H100.
+# Usage: from fr3_real/, run: sbatch training/train_fr3_v3_droid_full_nibi_slurm.sh
+# Train or resume the FR3 v3 full pi0.5-DROID fine-tune on a Nibi H100.
 
-#SBATCH --job-name=pi05_fr3_v2_full
+#SBATCH --job-name=pi05_fr3_v3_droid_full
 #SBATCH --account=def-mqp2259
 #SBATCH --gpus=h100:1
 #SBATCH --cpus-per-task=12
@@ -22,11 +22,11 @@ SCRATCH_ROOT="${SCRATCH_ROOT:-/scratch/${USER}/fr3_openpi_runs}"
 NORM_MODE="${NORM_MODE:-droid}"
 TARGET_STEPS="${TARGET_STEPS:-12000}"
 KEEP_PERIOD="${KEEP_PERIOD:-3000}"
-REPO_ID="${REPO_ID:-local/fr3_real_pick_place_droid_v2}"
+REPO_ID="${REPO_ID:-local/fr3_real_pick_place_droid_v3}"
 DATASET_VERSION="${REPO_ID##*_}"
-EXP_NAME="${EXP_NAME:-}"
-NORM_STATS_DIR="${NORM_STATS_DIR:-${FR3}/fr3_custom_assets_v2/droid}"
-SAMPLING_MANIFEST="${SAMPLING_MANIFEST:-${FR3}/fr3_phase_sampling_v2.json}"
+EXP_NAME="${EXP_NAME:-fr3_real_droid_full_v3_droid_norm_scratch_v1}"
+NORM_STATS_DIR="${NORM_STATS_DIR:-${FR3}/fr3_custom_assets_v3/droid}"
+SAMPLING_MANIFEST="${SAMPLING_MANIFEST:-${FR3}/fr3_phase_sampling_v3.json}"
 
 # Do not inherit cache locations from the login node: Hugging Face otherwise
 # materializes the Arrow dataset cache under quota-limited /home.
@@ -57,11 +57,11 @@ test -d "${HF_LEROBOT_HOME}/${REPO_ID}" || {
 
 case "${NORM_MODE}" in
   droid)
-    exp_name="${EXP_NAME:-fr3_real_droid_full_${DATASET_VERSION}_droid_norm}"
+    exp_name="${EXP_NAME}"
     norm_args=()
     ;;
   custom)
-    exp_name="${EXP_NAME:-fr3_real_droid_full_${DATASET_VERSION}_custom_norm}"
+    exp_name="${EXP_NAME}_custom_norm"
     norm_args=(--norm-stats-dir "${NORM_STATS_DIR}")
     ;;
   *)
