@@ -6,8 +6,8 @@ generation, and model training workflows.
 
 ## Released Artifacts
 
-- Model checkpoint: [`msbutt1/pi05-fr3-v3-12000`](https://huggingface.co/msbutt1/pi05-fr3-v3-12000)
-- LeRobot dataset: [`msbutt1/fr3-pick-place-lerobot`](https://huggingface.co/datasets/msbutt1/fr3-pick-place-lerobot)
+- Model checkpoint: [`pi0.5-fr3-v3-pick-place`](https://huggingface.co/msbutt1/pi05-fr3-v3-12000)
+- LeRobot dataset: [`fr3-pick-place-lerobot`](https://huggingface.co/datasets/msbutt1/fr3-pick-place-lerobot)
 
 The current live-evaluation workflow assumes the pi0.5-DROID action format:
 seven FR3 joint velocities plus one gripper-closedness value at 15 Hz.
@@ -29,7 +29,7 @@ Shared modules such as `franka_motion.py` and `grid_utils.py` remain at the
 For a catalog of every operational tool, its purpose, and its normal entry
 point, see [the FR3 Script Guide](docs/SCRIPT_GUIDE.md).
 
-## Dataset Collection In Plain English
+## Dataset Collection
 
 The dataset is built from successful real-robot demonstrations. For each
 demonstration, the collection script moves a cube from the basket to a selected
