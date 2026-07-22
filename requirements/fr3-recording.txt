@@ -1,0 +1,24 @@
+# Python 3.11 environment for FR3 recording, policy validation, and streaming.
+# Create the Conda environment first, then install from the repository root:
+#   conda env create -f fr3_real/configs/environment-fr3-recording.yml
+#   conda activate fr3-recording
+#   python -m pip install -r requirements/fr3-recording.txt
+#
+# System dependencies are intentionally not listed here: a compatible libfranka
+# installation, RealSense librealsense/USB permissions, and Linux build headers
+# are host-specific prerequisites for real-robot control.
+
+numpy==1.26.4
+pandas
+PyYAML
+tqdm
+
+franky-control==1.1.4
+pyrealsense2==2.58.2.10647
+opencv-python==4.11.0.86
+h5py==3.16.0
+zarr==2.18.7
+pyarrow==25.0.0
+
+# Install the checked-out OpenPI client separately after this file:
+#   python -m pip install -e ./openpi-client

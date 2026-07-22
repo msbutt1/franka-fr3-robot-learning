@@ -1,0 +1,8 @@
+{
+  "status": "setup_blocked_motion",
+  "run_index": 0,
+  "next_printed_cell": 2120,
+  "next_selected_index": 2119,
+  "next_generated_index": 2119,
+  "updated_time_ns": 1784232845771542649
+}

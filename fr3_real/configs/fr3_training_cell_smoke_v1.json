@@ -1,0 +1,18 @@
+{
+  "description": "Known demonstrated cell for closed-loop pipeline commissioning only.",
+  "total_positions": 1,
+  "trials_per_position": 1,
+  "total_trials": 1,
+  "positions": [
+    {
+      "x": 0.4373,
+      "y": -0.3552,
+      "table_z": 0.0252,
+      "source_cells": [104],
+      "eval_id": "C104",
+      "trials": 1,
+      "role": "training_cell_smoke_only",
+      "notes": "Never include this result in held-out validation or final-test success rates."
+    }
+  ]
+}

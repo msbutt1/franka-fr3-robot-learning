@@ -1,0 +1,798 @@
+{
+  "version": 1,
+  "raw_dir": "/home/salaar/Job/franka-fr3-robot-learning/fr3_real/recordings/droid_targeted_v2",
+  "protected_manifests": [
+    "/home/salaar/Job/franka-fr3-robot-learning/fr3_real/fr3_spatial_validation_v3.json",
+    "/home/salaar/Job/franka-fr3-robot-learning/fr3_real/fr3_interstitial_eval_v1.json"
+  ],
+  "minimum_distance_m": 0.03,
+  "episode_count": 78,
+  "excluded_unsuccessful_episodes": [
+    "20260716_105740_printed_cell_1056",
+    "20260716_110041_printed_cell_1059"
+  ],
+  "passed": true,
+  "failures": [],
+  "episodes": [
+    {
+      "episode": "20260715_160217_printed_cell_1001",
+      "xy": [
+        0.49837776443277526,
+        -0.11232809361823308
+      ],
+      "nearest_protected_distance": 0.04081940767017159,
+      "nearest_protected_id": "I01",
+      "failures": []
+    },
+    {
+      "episode": "20260715_160851_printed_cell_1002",
+      "xy": [
+        0.5227091204430577,
+        -0.17930451291850907
+      ],
+      "nearest_protected_distance": 0.037417215663461255,
+      "nearest_protected_id": "I14",
+      "failures": []
+    },
+    {
+      "episode": "20260715_161130_printed_cell_1003",
+      "xy": [
+        0.504246489436468,
+        -0.099463265964872
+      ],
+      "nearest_protected_distance": 0.05317313212543656,
+      "nearest_protected_id": "I14",
+      "failures": []
+    },
+    {
+      "episode": "20260715_161217_printed_cell_1004",
+      "xy": [
+        0.43557801216907494,
+        -0.0991833139405664
+      ],
+      "nearest_protected_distance": 0.0464721898059138,
+      "nearest_protected_id": "I17",
+      "failures": []
+    },
+    {
+      "episode": "20260715_161256_printed_cell_1005",
+      "xy": [
+        0.4338258937540871,
+        -0.13710248071676429
+      ],
+      "nearest_protected_distance": 0.042585462003167734,
+      "nearest_protected_id": "I01",
+      "failures": []
+    },
+    {
+      "episode": "20260715_161335_printed_cell_1006",
+      "xy": [
+        0.48563535437748695,
+        -0.08176827951449127
+      ],
+      "nearest_protected_distance": 0.05075368297661722,
+      "nearest_protected_id": "I17",
+      "failures": []
+    },
+    {
+      "episode": "20260715_161414_printed_cell_1007",
+      "xy": [
+        0.4809648871302242,
+        -0.20553872735651907
+      ],
+      "nearest_protected_distance": 0.04774658536386255,
+      "nearest_protected_id": "I01",
+      "failures": []
+    },
+    {
+      "episode": "20260715_161453_printed_cell_1008",
+      "xy": [
+        0.44357721574628295,
+        -0.10922064146661384
+      ],
+      "nearest_protected_distance": 0.04874383511704874,
+      "nearest_protected_id": "I01",
+      "failures": []
+    },
+    {
+      "episode": "20260716_101556_printed_cell_1009",
+      "xy": [
+        0.4286714522942956,
+        -0.12378155877799857
+      ],
+      "nearest_protected_distance": 0.05182996569586742,
+      "nearest_protected_id": "I01",
+      "failures": []
+    },
+    {
+      "episode": "20260716_102038_printed_cell_1010",
+      "xy": [
+        0.4605172446723998,
+        -0.20934778623073066
+      ],
+      "nearest_protected_distance": 0.03307589856129528,
+      "nearest_protected_id": "I01",
+      "failures": []
+    },
+    {
+      "episode": "20260716_102116_printed_cell_1011",
+      "xy": [
+        0.46340375669721134,
+        -0.08125592157913336
+      ],
+      "nearest_protected_distance": 0.03420707561331269,
+      "nearest_protected_id": "I17",
+      "failures": []
+    },
+    {
+      "episode": "20260716_102153_printed_cell_1012",
+      "xy": [
+        0.4747360183585343,
+        -0.10470524973910617
+      ],
+      "nearest_protected_distance": 0.0414009072237085,
+      "nearest_protected_id": "I01",
+      "failures": []
+    },
+    {
+      "episode": "20260716_102231_printed_cell_1013",
+      "xy": [
+        0.49136499140169115,
+        -0.09880750153883511
+      ],
+      "nearest_protected_distance": 0.04989857074120647,
+      "nearest_protected_id": "I01",
+      "failures": []
+    },
+    {
+      "episode": "20260716_102310_printed_cell_1014",
+      "xy": [
+        0.47063808686806835,
+        -0.19097626569895176
+      ],
+      "nearest_protected_distance": 0.03344777253855078,
+      "nearest_protected_id": "I01",
+      "failures": []
+    },
+    {
+      "episode": "20260716_102348_printed_cell_1015",
+      "xy": [
+        0.4219448453404293,
+        -0.14521657525147127
+      ],
+      "nearest_protected_distance": 0.04319004919974693,
+      "nearest_protected_id": "I01",
+      "failures": []
+    },
+    {
+      "episode": "20260716_102442_printed_cell_1016",
+      "xy": [
+        0.40701883151105067,
+        -0.1455924316299726
+      ],
+      "nearest_protected_distance": 0.05026822295814538,
+      "nearest_protected_id": "I01",
+      "failures": []
+    },
+    {
+      "episode": "20260716_102521_printed_cell_1017",
+      "xy": [
+        0.44955369649452886,
+        -0.09653940605417505
+      ],
+      "nearest_protected_distance": 0.04355516876681128,
+      "nearest_protected_id": "I17",
+      "failures": []
+    },
+    {
+      "episode": "20260716_102559_printed_cell_1018",
+      "xy": [
+        0.49897673430809164,
+        -0.1949476539031594
+      ],
+      "nearest_protected_distance": 0.054218082952520404,
+      "nearest_protected_id": "I01",
+      "failures": []
+    },
+    {
+      "episode": "20260716_102638_printed_cell_1019",
+      "xy": [
+        0.5105656471838624,
+        -0.11912497394208563
+      ],
+      "nearest_protected_distance": 0.033815956616419666,
+      "nearest_protected_id": "I14",
+      "failures": []
+    },
+    {
+      "episode": "20260716_102927_printed_cell_1020",
+      "xy": [
+        0.5164465014181197,
+        -0.09665494870417082
+      ],
+      "nearest_protected_distance": 0.050084553046979806,
+      "nearest_protected_id": "I14",
+      "failures": []
+    },
+    {
+      "episode": "20260716_103004_printed_cell_1021",
+      "xy": [
+        0.4140053777636085,
+        -0.12057698394134851
+      ],
+      "nearest_protected_distance": 0.05731753082855839,
+      "nearest_protected_id": "I13",
+      "failures": []
+    },
+    {
+      "episode": "20260716_103042_printed_cell_1022",
+      "xy": [
+        0.48320118759224795,
+        -0.18983233898341584
+      ],
+      "nearest_protected_distance": 0.0444139435543683,
+      "nearest_protected_id": "I01",
+      "failures": []
+    },
+    {
+      "episode": "20260716_103120_printed_cell_1023",
+      "xy": [
+        0.4994163883752763,
+        -0.08554246399835226
+      ],
+      "nearest_protected_distance": 0.06079675446516975,
+      "nearest_protected_id": "I08",
+      "failures": []
+    },
+    {
+      "episode": "20260716_103157_printed_cell_1024",
+      "xy": [
+        0.4920415519630635,
+        -0.21359448674604964
+      ],
+      "nearest_protected_distance": 0.061241759112138465,
+      "nearest_protected_id": "I01",
+      "failures": []
+    },
+    {
+      "episode": "20260716_103314_printed_cell_1025",
+      "xy": [
+        0.5104830408758803,
+        -0.16680497000429975
+      ],
+      "nearest_protected_distance": 0.032967023030919064,
+      "nearest_protected_id": "I14",
+      "failures": []
+    },
+    {
+      "episode": "20260716_103359_printed_cell_1026",
+      "xy": [
+        0.4696555555997173,
+        -0.09149907186758127
+      ],
+      "nearest_protected_distance": 0.04618483853323569,
+      "nearest_protected_id": "I17",
+      "failures": []
+    },
+    {
+      "episode": "20260716_103436_printed_cell_1027",
+      "xy": [
+        0.41892148876552693,
+        -0.13251732211591546
+      ],
+      "nearest_protected_distance": 0.05614824593021618,
+      "nearest_protected_id": "I01",
+      "failures": []
+    },
+    {
+      "episode": "20260716_103515_printed_cell_1028",
+      "xy": [
+        0.4083836252064861,
+        -0.16312330451292162
+      ],
+      "nearest_protected_distance": 0.03681035214348208,
+      "nearest_protected_id": "I01",
+      "failures": []
+    },
+    {
+      "episode": "20260716_103553_printed_cell_1029",
+      "xy": [
+        0.5250997237555927,
+        -0.1071308366109718
+      ],
+      "nearest_protected_distance": 0.03751592648827317,
+      "nearest_protected_id": "I14",
+      "failures": []
+    },
+    {
+      "episode": "20260716_103631_printed_cell_1030",
+      "xy": [
+        0.501873505539323,
+        -0.18023778999719525
+      ],
+      "nearest_protected_distance": 0.04316932187189461,
+      "nearest_protected_id": "I01",
+      "failures": []
+    },
+    {
+      "episode": "20260716_103708_printed_cell_1031",
+      "xy": [
+        0.45926743259935426,
+        -0.10486673696988102
+      ],
+      "nearest_protected_distance": 0.044295117877565425,
+      "nearest_protected_id": "I01",
+      "failures": []
+    },
+    {
+      "episode": "20260716_103747_printed_cell_1032",
+      "xy": [
+        0.5234138183238665,
+        -0.19688347302698098
+      ],
+      "nearest_protected_distance": 0.05430551080656445,
+      "nearest_protected_id": "I14",
+      "failures": []
+    },
+    {
+      "episode": "20260716_103832_printed_cell_1033",
+      "xy": [
+        0.5844348020548439,
+        -0.1736096437181043
+      ],
+      "nearest_protected_distance": 0.04328516050586785,
+      "nearest_protected_id": "I08",
+      "failures": []
+    },
+    {
+      "episode": "20260716_104116_printed_cell_1034",
+      "xy": [
+        0.5469697554437867,
+        -0.2116909670993909
+      ],
+      "nearest_protected_distance": 0.06933396215341167,
+      "nearest_protected_id": "I14",
+      "failures": []
+    },
+    {
+      "episode": "20260716_104153_printed_cell_1035",
+      "xy": [
+        0.3920033315140776,
+        0.16101351314976706
+      ],
+      "nearest_protected_distance": 0.07277123217753287,
+      "nearest_protected_id": "I04",
+      "failures": []
+    },
+    {
+      "episode": "20260716_104230_printed_cell_1036",
+      "xy": [
+        0.3614683495440786,
+        -0.3446904428616478
+      ],
+      "nearest_protected_distance": 0.04266859544802498,
+      "nearest_protected_id": "I09",
+      "failures": []
+    },
+    {
+      "episode": "20260716_104309_printed_cell_1037",
+      "xy": [
+        0.35864502061732006,
+        0.15712512841818324
+      ],
+      "nearest_protected_distance": 0.06009018334904815,
+      "nearest_protected_id": "I04",
+      "failures": []
+    },
+    {
+      "episode": "20260716_104345_printed_cell_1038",
+      "xy": [
+        0.63664045292932,
+        -0.05519417573070853
+      ],
+      "nearest_protected_distance": 0.04654700002630202,
+      "nearest_protected_id": "I16",
+      "failures": []
+    },
+    {
+      "episode": "20260716_104423_printed_cell_1039",
+      "xy": [
+        0.3582649639217564,
+        -0.27599467646223175
+      ],
+      "nearest_protected_distance": 0.03422731822276692,
+      "nearest_protected_id": "I11",
+      "failures": []
+    },
+    {
+      "episode": "20260716_104504_printed_cell_1040",
+      "xy": [
+        0.4322342882186482,
+        -0.37887992794851705
+      ],
+      "nearest_protected_distance": 0.04066448243860003,
+      "nearest_protected_id": "I07",
+      "failures": []
+    },
+    {
+      "episode": "20260716_104546_printed_cell_1041",
+      "xy": [
+        0.5113641608749389,
+        -0.3628115188931161
+      ],
+      "nearest_protected_distance": 0.05046980917696429,
+      "nearest_protected_id": "I07",
+      "failures": []
+    },
+    {
+      "episode": "20260716_104628_printed_cell_1042",
+      "xy": [
+        0.4793629891416555,
+        -0.32499811762107345
+      ],
+      "nearest_protected_distance": 0.04787954412129184,
+      "nearest_protected_id": "I15",
+      "failures": []
+    },
+    {
+      "episode": "20260716_104708_printed_cell_1043",
+      "xy": [
+        0.5005111698952373,
+        -0.25047355547514905
+      ],
+      "nearest_protected_distance": 0.030225747119084975,
+      "nearest_protected_id": "I15",
+      "failures": []
+    },
+    {
+      "episode": "20260716_104908_printed_cell_1044",
+      "xy": [
+        0.5525527793531025,
+        -0.30406155396440954
+      ],
+      "nearest_protected_distance": 0.032562534642439765,
+      "nearest_protected_id": "I10",
+      "failures": []
+    },
+    {
+      "episode": "20260716_104952_printed_cell_1045",
+      "xy": [
+        0.2875798842338914,
+        -0.2961687000071879
+      ],
+      "nearest_protected_distance": 0.03797223373581919,
+      "nearest_protected_id": "I20",
+      "failures": []
+    },
+    {
+      "episode": "20260716_105032_printed_cell_1046",
+      "xy": [
+        0.5880272859555624,
+        -0.07112393153811832
+      ],
+      "nearest_protected_distance": 0.06511715057295427,
+      "nearest_protected_id": "I08",
+      "failures": []
+    },
+    {
+      "episode": "20260716_105107_printed_cell_1047",
+      "xy": [
+        0.5354922976598302,
+        0.08078739447568951
+      ],
+      "nearest_protected_distance": 0.056497744757364084,
+      "nearest_protected_id": "I03",
+      "failures": []
+    },
+    {
+      "episode": "20260716_105145_printed_cell_1048",
+      "xy": [
+        0.3813965807906105,
+        -0.24840465619479163
+      ],
+      "nearest_protected_distance": 0.05122203649227023,
+      "nearest_protected_id": "I11",
+      "failures": []
+    },
+    {
+      "episode": "20260716_105225_printed_cell_1049",
+      "xy": [
+        0.39217553706067454,
+        -0.10416432712297152
+      ],
+      "nearest_protected_distance": 0.037098304494371855,
+      "nearest_protected_id": "I13",
+      "failures": []
+    },
+    {
+      "episode": "20260716_105303_printed_cell_1050",
+      "xy": [
+        0.4118120602356668,
+        0.06214663904535875
+      ],
+      "nearest_protected_distance": 0.045756127919266684,
+      "nearest_protected_id": "I12",
+      "failures": []
+    },
+    {
+      "episode": "20260716_105423_printed_cell_1051",
+      "xy": [
+        0.2629599104529859,
+        0.3176448851897695
+      ],
+      "nearest_protected_distance": 0.053296050974811424,
+      "nearest_protected_id": "I02",
+      "failures": []
+    },
+    {
+      "episode": "20260716_105503_printed_cell_1052",
+      "xy": [
+        0.37492441114756786,
+        -0.2659512039506954
+      ],
+      "nearest_protected_distance": 0.03461598864349343,
+      "nearest_protected_id": "I11",
+      "failures": []
+    },
+    {
+      "episode": "20260716_105544_printed_cell_1053",
+      "xy": [
+        0.31035707925921685,
+        -0.24218038703958256
+      ],
+      "nearest_protected_distance": 0.05209152416276113,
+      "nearest_protected_id": "I18",
+      "failures": []
+    },
+    {
+      "episode": "20260716_105623_printed_cell_1054",
+      "xy": [
+        0.5877195534360677,
+        -0.030173950456916183
+      ],
+      "nearest_protected_distance": 0.04282931729094272,
+      "nearest_protected_id": "I16",
+      "failures": []
+    },
+    {
+      "episode": "20260716_105702_printed_cell_1055",
+      "xy": [
+        0.3637832345007304,
+        -0.18897327489743498
+      ],
+      "nearest_protected_distance": 0.04210037558985143,
+      "nearest_protected_id": "I18",
+      "failures": []
+    },
+    {
+      "episode": "20260716_105922_printed_cell_1057",
+      "xy": [
+        0.516530176730541,
+        -0.21202533081142
+      ],
+      "nearest_protected_distance": 0.07059558525194407,
+      "nearest_protected_id": "I14",
+      "failures": []
+    },
+    {
+      "episode": "20260716_110001_printed_cell_1058",
+      "xy": [
+        0.562556734569984,
+        -0.20010031115112842
+      ],
+      "nearest_protected_distance": 0.06335213963544437,
+      "nearest_protected_id": "I14",
+      "failures": []
+    },
+    {
+      "episode": "20260716_110344_printed_cell_1060",
+      "xy": [
+        0.3581100782229437,
+        -0.2154640473428523
+      ],
+      "nearest_protected_distance": 0.04362960654913024,
+      "nearest_protected_id": "I18",
+      "failures": []
+    },
+    {
+      "episode": "20260716_110425_printed_cell_1061",
+      "xy": [
+        0.3114796469837033,
+        -0.38329830298324613
+      ],
+      "nearest_protected_distance": 0.04149033864640346,
+      "nearest_protected_id": "I04",
+      "failures": []
+    },
+    {
+      "episode": "20260716_110507_printed_cell_1062",
+      "xy": [
+        0.5223460152444453,
+        -0.26617673207817927
+      ],
+      "nearest_protected_distance": 0.03655969852573933,
+      "nearest_protected_id": "I15",
+      "failures": []
+    },
+    {
+      "episode": "20260716_110837_printed_cell_1063",
+      "xy": [
+        0.3125479663384285,
+        0.19796675662971958
+      ],
+      "nearest_protected_distance": 0.11039445767568441,
+      "nearest_protected_id": "I04",
+      "failures": []
+    },
+    {
+      "episode": "20260716_110914_printed_cell_1064",
+      "xy": [
+        0.5583751775038028,
+        0.05152555436295569
+      ],
+      "nearest_protected_distance": 0.053251737096377844,
+      "nearest_protected_id": "I06",
+      "failures": []
+    },
+    {
+      "episode": "20260716_110948_printed_cell_1065",
+      "xy": [
+        0.5661408954518852,
+        0.10953775033446768
+      ],
+      "nearest_protected_distance": 0.03555980352094763,
+      "nearest_protected_id": "I03",
+      "failures": []
+    },
+    {
+      "episode": "20260716_111023_printed_cell_1066",
+      "xy": [
+        0.3715094165272348,
+        0.13751620481513532
+      ],
+      "nearest_protected_distance": 0.042888474561179425,
+      "nearest_protected_id": "I04",
+      "failures": []
+    },
+    {
+      "episode": "20260716_111101_printed_cell_1067",
+      "xy": [
+        0.41477094324649705,
+        -0.2570628668673081
+      ],
+      "nearest_protected_distance": 0.053062472007962824,
+      "nearest_protected_id": "I11",
+      "failures": []
+    },
+    {
+      "episode": "20260716_111416_printed_cell_1068",
+      "xy": [
+        0.5224627248321408,
+        0.07385991806724315
+      ],
+      "nearest_protected_distance": 0.06623649458125906,
+      "nearest_protected_id": "I03",
+      "failures": []
+    },
+    {
+      "episode": "20260716_111459_printed_cell_1069",
+      "xy": [
+        0.333426524535136,
+        -0.28359325251923473
+      ],
+      "nearest_protected_distance": 0.05214120522317206,
+      "nearest_protected_id": "I11",
+      "failures": []
+    },
+    {
+      "episode": "20260716_111538_printed_cell_1070",
+      "xy": [
+        0.397627308725415,
+        -0.08361978514164747
+      ],
+      "nearest_protected_distance": 0.04429499488379375,
+      "nearest_protected_id": "I10",
+      "failures": []
+    },
+    {
+      "episode": "20260716_111738_printed_cell_1071",
+      "xy": [
+        0.30883853944761924,
+        0.18529080503200743
+      ],
+      "nearest_protected_distance": 0.10067250285736769,
+      "nearest_protected_id": "I04",
+      "failures": []
+    },
+    {
+      "episode": "20260716_111820_printed_cell_1072",
+      "xy": [
+        0.34264148048015125,
+        0.2679197291815944
+      ],
+      "nearest_protected_distance": 0.09942439952674184,
+      "nearest_protected_id": "I02",
+      "failures": []
+    },
+    {
+      "episode": "20260716_111858_printed_cell_1073",
+      "xy": [
+        0.27669835910932034,
+        0.18468111832922068
+      ],
+      "nearest_protected_distance": 0.1190623257537831,
+      "nearest_protected_id": "I04",
+      "failures": []
+    },
+    {
+      "episode": "20260716_111939_printed_cell_1074",
+      "xy": [
+        0.32715707441258,
+        -0.33740977192804406
+      ],
+      "nearest_protected_distance": 0.05151113905257181,
+      "nearest_protected_id": "I20",
+      "failures": []
+    },
+    {
+      "episode": "20260716_112019_printed_cell_1075",
+      "xy": [
+        0.3319084262023805,
+        0.04811637116343907
+      ],
+      "nearest_protected_distance": 0.039498676006625606,
+      "nearest_protected_id": "I05",
+      "failures": []
+    },
+    {
+      "episode": "20260716_112242_printed_cell_1076",
+      "xy": [
+        0.580004835553791,
+        -0.38109198136165556
+      ],
+      "nearest_protected_distance": 0.03741397481143575,
+      "nearest_protected_id": "I05",
+      "failures": []
+    },
+    {
+      "episode": "20260716_112327_printed_cell_1077",
+      "xy": [
+        0.3041782634653709,
+        0.3150819508652233
+      ],
+      "nearest_protected_distance": 0.05537085227643049,
+      "nearest_protected_id": "I02",
+      "failures": []
+    },
+    {
+      "episode": "20260716_112521_printed_cell_1078",
+      "xy": [
+        0.5460518273240127,
+        -0.0901149501585725
+      ],
+      "nearest_protected_distance": 0.05484813090573465,
+      "nearest_protected_id": "I14",
+      "failures": []
+    },
+    {
+      "episode": "20260716_112605_printed_cell_1079",
+      "xy": [
+        0.26135747992785757,
+        -0.2883192033809436
+      ],
+      "nearest_protected_distance": 0.039096264000700626,
+      "nearest_protected_id": "I09",
+      "failures": []
+    },
+    {
+      "episode": "20260716_112842_printed_cell_1080",
+      "xy": [
+        0.3482228661691273,
+        0.17805714935866987
+      ],
+      "nearest_protected_distance": 0.08151412519190415,
+      "nearest_protected_id": "I04",
+      "failures": []
+    }
+  ]
+}

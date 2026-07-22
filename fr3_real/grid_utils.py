@@ -1,4 +1,5 @@
 """Pure geometry helpers for FR3 grid and basket exclusion."""
+# Usage: import this shared module from an FR3 script; it is not a standalone command.
 
 from __future__ import annotations
 
@@ -19,7 +20,7 @@ def basket_polygon_from_points(points: dict) -> np.ndarray | None:
     return np.array([points[label][:2] for label in BASKET_CORNER_LABELS], dtype=float)
 
 
-def _point_in_polygon_xy(point_xy: np.ndarray, polygon_xy: np.ndarray) -> bool:
+def point_in_polygon_xy(point_xy: np.ndarray, polygon_xy: np.ndarray) -> bool:
     x, y = point_xy
     inside = False
     n = len(polygon_xy)
@@ -54,7 +55,7 @@ def inside_basket_exclusion(
 ) -> bool:
     point_xy = np.array(xyz[:2], dtype=float)
     if basket_polygon_xy is not None:
-        if _point_in_polygon_xy(point_xy, basket_polygon_xy):
+        if point_in_polygon_xy(point_xy, basket_polygon_xy):
             return True
         distances = [
             _point_segment_distance_xy(point_xy, basket_polygon_xy[i], basket_polygon_xy[(i + 1) % len(basket_polygon_xy)])

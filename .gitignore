@@ -6,3 +6,6 @@ venv/
 .DS_Store
 .~lock.*#
 fr3_real/recordings/
+fr3_real/eval_logs/
+fr3_real/shadow_logs/
+fr3_real/model-running/streaming/build/

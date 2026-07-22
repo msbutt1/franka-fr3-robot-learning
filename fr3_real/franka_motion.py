@@ -1,4 +1,5 @@
 """Shared FR3 motion helpers aligned with libfranka example patterns."""
+# Usage: import this shared module from an FR3 script; it is not a standalone command.
 
 from __future__ import annotations
 
@@ -56,6 +57,8 @@ class MotionPlanner:
         action_callback=None,
         retry_policy: str = "retry_slower",
         allow_segment_fallback: bool = True,
+        settle_velocity_threshold: float = 0.01,
+        settle_velocity_timeout: float = 1.0,
     ) -> None:
         self.robot = robot
         self.dynamics_factor = dynamics_factor
@@ -65,6 +68,8 @@ class MotionPlanner:
         self.action_callback = action_callback
         self.retry_policy = retry_policy
         self.allow_segment_fallback = allow_segment_fallback
+        self.settle_velocity_threshold = settle_velocity_threshold
+        self.settle_velocity_timeout = settle_velocity_timeout
 
     def current_xyz(self) -> np.ndarray:
         return np.array(self.robot.current_pose.end_effector_pose.translation, dtype=float)
@@ -75,12 +80,39 @@ class MotionPlanner:
         target_ee = Affine(np.array(target_xyz, dtype=float), np.array(current_ee.quaternion, dtype=float))
         return RobotPose(target_ee, current_pose.elbow_state)
 
+    def wait_until_stationary(self, label: str = "") -> None:
+        """Wait for measured joint velocity to settle before a motion boundary."""
+        if self.settle_velocity_threshold <= 0:
+            return
+
+        deadline = time.monotonic() + self.settle_velocity_timeout
+        stable_samples = 0
+        last_peak = float("nan")
+        while time.monotonic() < deadline:
+            dq = np.asarray(self.robot.state.dq, dtype=float)
+            if dq.size and np.all(np.isfinite(dq)):
+                last_peak = float(np.max(np.abs(dq)))
+                if last_peak <= self.settle_velocity_threshold:
+                    stable_samples += 1
+                    if stable_samples >= 3:
+                        return
+                else:
+                    stable_samples = 0
+            time.sleep(0.01)
+
+        raise RuntimeError(
+            f"{label or 'motion'} did not settle below "
+            f"{self.settle_velocity_threshold:.3f} rad/s within "
+            f"{self.settle_velocity_timeout:.2f}s (last peak={last_peak:.3f} rad/s)"
+        )
+
     def safe_move_to(self, target_xyz, label: str = "") -> None:
         target_xyz = np.array(target_xyz, dtype=float)
         for attempt in (1, 2, 3):
             current = self.current_xyz()
             delta = target_xyz - current
             try:
+                self.wait_until_stationary(f"{label}: before command")
                 if self.action_callback is not None:
                     self.action_callback(
                         "cartesian_move",
@@ -93,6 +125,7 @@ class MotionPlanner:
                         },
                     )
                 self.robot.move(CartesianMotion(self._absolute_pose_at(target_xyz), ReferenceType.Absolute))
+                self.wait_until_stationary(f"{label}: after command")
                 if self.settle_time > 0:
                     time.sleep(self.settle_time)
                 return

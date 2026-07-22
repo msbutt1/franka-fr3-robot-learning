@@ -1,0 +1,20 @@
+{
+  "description": "Single arbitrary manually placed live-policy trial.",
+  "training_cells_source": "recordings/droid_raw_full_v3",
+  "total_positions": 1,
+  "trials_per_position": 1,
+  "total_trials": 1,
+  "positions": [
+    {
+      "x": 0.45,
+      "y": -0.15,
+      "table_z": 0.024,
+      "axis": "manual_live",
+      "source_cells": [75, 76],
+      "eval_id": "R02",
+      "trials": 1,
+      "role": "manual_live_validation",
+      "notes": "Coordinates are metadata only and ignored in manual-live mode; operator places cube anywhere inside the safe workspace."
+    }
+  ]
+}
