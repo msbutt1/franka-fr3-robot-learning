@@ -29,7 +29,7 @@ Shared modules such as `franka_motion.py` and `grid_utils.py` remain at the
 For a catalog of every operational tool, its purpose, and its normal entry
 point, see [the FR3 Script Guide](docs/SCRIPT_GUIDE.md).
 
-## Dataset Collection In Plain English
+## Dataset Collection
 
 The dataset is built from successful real-robot demonstrations. For each
 demonstration, the collection script moves a cube from the basket to a selected
