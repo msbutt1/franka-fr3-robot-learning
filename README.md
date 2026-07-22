@@ -6,8 +6,8 @@ generation, and model training workflows.
 
 ## Released Artifacts
 
-- Model checkpoint: [`msbutt1/pi05-fr3-v3-12000`](https://huggingface.co/msbutt1/pi05-fr3-v3-12000)
-- LeRobot dataset: [`msbutt1/fr3-pick-place-lerobot`](https://huggingface.co/datasets/msbutt1/fr3-pick-place-lerobot)
+- Model checkpoint: [`pi0.5-fr3-v3-pick-place`](https://huggingface.co/msbutt1/pi05-fr3-v3-12000)
+- LeRobot dataset: [`fr3-pick-place-lerobot`](https://huggingface.co/datasets/msbutt1/fr3-pick-place-lerobot)
 
 The current live-evaluation workflow assumes the pi0.5-DROID action format:
 seven FR3 joint velocities plus one gripper-closedness value at 15 Hz.
