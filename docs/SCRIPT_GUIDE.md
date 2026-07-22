@@ -24,6 +24,9 @@ prompt before confirming a live action.
 `franka_motion.py`, `grid_utils.py`, and `franka-tests/realsense_recorder.py`
 are shared modules imported by these tools, not standalone commands.
 
+For the complete demonstration-collection procedure, see the
+[FR3 Recording Guide](RECORDING_GUIDE.md).
+
 ## Model Validation
 
 These tools do not command arm motion.

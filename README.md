@@ -29,6 +29,25 @@ Shared modules such as `franka_motion.py` and `grid_utils.py` remain at the
 For a catalog of every operational tool, its purpose, and its normal entry
 point, see [the FR3 Script Guide](docs/SCRIPT_GUIDE.md).
 
+## Dataset Collection In Plain English
+
+The dataset is built from successful real-robot demonstrations. For each
+demonstration, the collection script moves a cube from the basket to a selected
+table cell, returns the arm to a consistent start pose, then records the robot
+as it picks that cube and places it back in the basket. Two RealSense cameras,
+robot joint and end-effector state, gripper state, and commanded actions are
+saved together in one raw episode folder. Failed or incomplete attempts remain
+separate and are excluded from normal training conversion.
+
+After collection, the raw episodes are checked for complete state and camera
+data, then converted into the LeRobot format. Training uses those synchronized
+images, observations, actions, and task labels. The collection script controls
+the demonstrated motion; the learned policy is not involved during recording.
+
+For the complete operator workflow, including calibration, safe recording,
+quality checks, conversion, and publishing, see the
+[FR3 Recording Guide](docs/RECORDING_GUIDE.md).
+
 ## Python Setup
 
 For the FR3 control and validation workstation, create the provided Conda
