@@ -8,7 +8,7 @@ generation, and model training workflows.
 
 - Model checkpoint: [`pi0.5-fr3-v3-pick-place`](https://huggingface.co/msbutt1/pi05-fr3-v3-12000)
 - LeRobot dataset: [`fr3-pick-place-lerobot`](https://huggingface.co/datasets/msbutt1/fr3-pick-place-lerobot)
-
+- Live Evaluations: [`demos`](https://github.com/msbutt1/franka-fr3-robot-learning/wiki/Live-Policy-Evaluations)
 The current live-evaluation workflow assumes the pi0.5-DROID action format:
 seven FR3 joint velocities plus one gripper-closedness value at 15 Hz.
 
